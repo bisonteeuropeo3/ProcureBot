@@ -1,0 +1,63 @@
+export interface SerperShoppingResult {
+  title: string;
+  source: string;
+  price: string;
+  link: string;
+  delivery: string;
+  imageUrl: string;
+  rating?: number;
+  ratingCount?: number;
+  productId?: string;
+  position?: number;
+}
+
+export interface SerperResponse {
+  shopping: SerperShoppingResult[];
+}
+
+export async function searchGoogleShopping(query: string): Promise<SerperShoppingResult[]> {
+  const apiKey = (import.meta as any).env?.VITE_SERPER_API_KEY;
+
+  console.log(`[Serper] Searching for "${query}"`);
+  console.log(`[Serper] API Key present: ${!!apiKey}`);
+
+  if (!apiKey) {
+    console.error("[Serper] Missing VITE_SERPER_API_KEY");
+    throw new Error("Missing Serper API Key (VITE_SERPER_API_KEY). Check .env.local");
+  }
+
+  const myHeaders = new Headers();
+  myHeaders.append("X-API-KEY", apiKey);
+  myHeaders.append("Content-Type", "application/json");
+
+  const raw = JSON.stringify({
+    "q": query,
+    "gl": "it",
+    "hl": "it"
+  });
+
+  const requestOptions: RequestInit = {
+    method: 'POST',
+    headers: myHeaders,
+    body: raw,
+    redirect: 'follow'
+  };
+
+  try {
+    const response = await fetch("https://google.serper.dev/shopping", requestOptions);
+    console.log(`[Serper] Response status: ${response.status}`);
+    
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[Serper] API Error: ${response.status} - ${errorText}`);
+        throw new Error(`Serper API failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const result = await response.json() as SerperResponse;
+    console.log(`[Serper] Found ${result.shopping?.length || 0} results`);
+    return result.shopping || [];
+  } catch (error: any) {
+    console.error("[Serper] Fetch error:", error);
+    throw new Error(`Search failed: ${error.message}`);
+  }
+}

@@ -6,4 +6,4 @@ const supabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_KEY || 'sb_publi
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export const N8N_WEBHOOK_URL = 'https://bisonteeuropeo.app.n8n.cloud/webhook/new-request';
+export const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook-test/new-request';

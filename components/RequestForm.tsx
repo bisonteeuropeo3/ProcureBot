@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X, Bot, Loader2 } from 'lucide-react';
-import { N8N_WEBHOOK_URL } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
+import { searchGoogleShopping } from '../lib/serper';
+import { RequestStatus } from '../types';
 
 interface RequestFormProps {
   isOpen: boolean;
@@ -13,33 +15,76 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, onClose, onSubmitSucc
   const [quantity, setQuantity] = useState(1);
   const [targetPrice, setTargetPrice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string>('');
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setStatusMessage('Creating request...');
 
     try {
-      // TRIGGER N8N ONLY
-      // We do NOT insert into Supabase here. n8n handles the logic and DB insertion.
+      const numericTargetPrice = parseFloat(targetPrice);
+
+      // 1. Insert Request into Supabase
+      const { data: requestData, error: requestError } = await supabase
+        .from('requests')
+        .insert([
+          {
+            product_name: productName,
+            quantity: quantity,
+            target_price: numericTargetPrice,
+            source: 'dashboard',
+            status: RequestStatus.PENDING,
+          }
+        ])
+        .select()
+        .single();
+
+      if (requestError) throw requestError;
+      if (!requestData) throw new Error('Failed to create request');
+
+      const requestId = requestData.id;
+
+      // 2. Search Google Shopping via Serper
+      setStatusMessage('Searching web for best prices...');
+      const shoppingResults = await searchGoogleShopping(productName);
+
+      // 3. Transform and Save Options
+      setStatusMessage(`Processing ${shoppingResults.length} results...`);
       
-      const payload = {
-        product_name: productName,
-        quantity: quantity,
-        target_price: parseFloat(targetPrice),
-        source: 'dashboard',
-        // We let Supabase/n8n handle the timestamp for consistency
-      };
-      
-      // Fire and forget to n8n Webhook
-      await fetch(N8N_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      // Close immediately. The UI will update via Supabase Realtime when n8n finishes the job.
+      if (shoppingResults.length > 0) {
+        const optionsToInsert = shoppingResults.slice(0, 10).map((item) => ({
+          request_id: requestId,
+          vendor: item.source,
+          product_title: item.title,
+          price: parseFloat(item.price.replace(/[^0-9.,]/g, '').replace(',', '.')), // Clean price string
+          url: item.link,
+          image_url: item.imageUrl,
+          rating: item.rating,
+          rating_count: item.ratingCount,
+          product_id: item.productId,
+          position: item.position,
+          is_selected: false
+        }));
+
+        const { error: optionsError } = await supabase
+          .from('sourcing_options')
+          .insert(optionsToInsert);
+
+        if (optionsError) {
+            console.error("Error inserting options:", optionsError);
+            // Don't throw, just proceed, maybe we failed to save options but request is there
+        } else {
+            // 4. Update Request Status to ACTION_REQUIRED
+            await supabase
+                .from('requests')
+                .update({ status: RequestStatus.ACTION_REQUIRED })
+                .eq('id', requestId);
+        }
+      }
+
       onSubmitSuccess();
       onClose();
       
@@ -47,9 +92,23 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, onClose, onSubmitSucc
       setProductName('');
       setQuantity(1);
       setTargetPrice('');
-    } catch (error) {
-      console.error('Error triggering bot:', error);
-      alert('Failed to launch agent. Check console.');
+      setStatusMessage('');
+      
+    } catch (error: any) {
+      console.error('Error processing request:', error);
+      
+      // Show specific error to user
+      let errorMessage = 'Failed to process request.';
+      if (error.message.includes('Missing Serper API Key')) {
+        errorMessage = 'Missing VITE_SERPER_API_KEY in .env.local file.';
+      } else if (error.message.includes('Serper API failed')) {
+        errorMessage = `Search Provider Error: ${error.message}`;
+      } else {
+        errorMessage = `Error: ${error.message}`;
+      }
+      
+      alert(errorMessage);
+      setStatusMessage('Failed.');
     } finally {
       setIsSubmitting(false);
     }
@@ -129,7 +188,7 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, onClose, onSubmitSucc
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Sending...
+                  {statusMessage || 'Processing...'}
                 </>
               ) : (
                 <>
