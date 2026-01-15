@@ -73,4 +73,47 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE TRIGGER on_option_created
 AFTER INSERT ON public.sourcing_options
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_sourcing_option();
+
+-- ==========================================
+-- RECEIPT ANALYSIS TABLES (NEW)
+-- ==========================================
+
+-- 6. Create receipts table (Master record)
+CREATE TABLE IF NOT EXISTS public.receipts (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    description TEXT, -- User note/memo
+    merchant_name TEXT,
+    total_amount NUMERIC,
+    currency TEXT DEFAULT 'EUR',
+    receipt_date DATE,
+    status TEXT CHECK (status IN ('processing', 'analyzed', 'completed')) DEFAULT 'processing',
+    image_url TEXT, -- Path to storage or base64 (if small enough/temp) or just reference
+    raw_data JSONB -- Full AI JSON output for debug
+);
+
+-- 7. Create receipt_items table (Individual articles)
+CREATE TABLE IF NOT EXISTS public.receipt_items (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    receipt_id UUID REFERENCES public.receipts(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    description TEXT NOT NULL,
+    quantity INTEGER DEFAULT 1,
+    price NUMERIC NOT NULL,
+    category TEXT
+);
+
+-- 8. Add receipt_id to requests table for lineage
+-- ALTER TABLE public.requests ADD COLUMN IF NOT EXISTS receipt_id UUID REFERENCES public.receipts(id);
+
+-- 9. Enable RLS for new tables
+ALTER TABLE public.receipts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.receipt_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Enable all access for receipts" ON public.receipts FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Enable all access for receipt_items" ON public.receipt_items FOR ALL USING (true) WITH CHECK (true);
+
+-- 10. Realtime for new tables
+alter publication supabase_realtime add table public.receipts;
+alter publication supabase_realtime add table public.receipt_items;
 `;

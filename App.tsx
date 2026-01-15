@@ -19,6 +19,9 @@ import HistoryView from './components/HistoryView';
 import SettingsView from './components/SettingsView';
 import OptionSelectionModal from './components/OptionSelectionModal';
 import DashboardCharts from './components/DashboardCharts';
+import ReceiptUploadModal from './components/ReceiptUploadModal';
+import ReceiptReviewModal from './components/ReceiptReviewModal';
+import { analyzeReceipt, ReceiptData, ReceiptItem } from './lib/receipt_analyzer';
 
 type ViewPage = 'dashboard' | 'history' | 'settings';
 
@@ -29,6 +32,15 @@ const App: React.FC = () => {
   // Modal States
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [reviewRequest, setReviewRequest] = useState<ProcurementRequest | null>(null);
+  
+  // Receipt States
+  const [isReceiptUploadOpen, setIsReceiptUploadOpen] = useState(false);
+  const [isReceiptReviewOpen, setIsReceiptReviewOpen] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSavingReceipt, setIsSavingReceipt] = useState(false);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [currentReceiptId, setCurrentReceiptId] = useState<string | null>(null);
+
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -142,6 +154,118 @@ const App: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  // Receipt Handlers
+  const handleAnalyzeReceipt = async (file: File, description: string) => {
+    try {
+      setIsAnalyzing(true);
+      
+      // 1. Create Receipt Entry (Processing)
+      const { data: receiptCallback, error: receiptError } = await supabase
+        .from('receipts')
+        .insert({
+          description,
+          status: 'processing',
+          image_url: 'placeholder_for_now' // We aren't uploading to storage yet
+        })
+        .select()
+        .single();
+      
+      if (receiptError) throw receiptError;
+      setCurrentReceiptId(receiptCallback.id);
+
+      // 2. Analyze
+      const data = await analyzeReceipt(file);
+      setReceiptData(data);
+      
+      // 3. Update Receipt with AI Data
+      await supabase
+        .from('receipts')
+        .update({
+          merchant_name: data.merchantName,
+          total_amount: data.totalAmount,
+          currency: data.currency,
+          receipt_date: data.date,
+          status: 'analyzed',
+          raw_data: data // Save full JSON for debug
+        })
+        .eq('id', receiptCallback.id);
+
+      setIsReceiptUploadOpen(false);
+      setIsReceiptReviewOpen(true);
+
+    } catch (error: any) {
+      console.error("Receipt analysis failed:", error);
+      showToast(`Error: ${error.message || "Failed to analyze receipt"}`);
+      // Ideally delete the partial receipt or mark as failed
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleConfirmReceiptImport = async (editedData: ReceiptData, selectedItems: ReceiptItem[]) => {
+     if (!currentReceiptId || !receiptData) return;
+
+     try {
+       setIsSavingReceipt(true);
+
+       // 0. Update Receipt Metadata (with potentially edited values)
+       const { error: receiptUpdateError } = await supabase
+         .from('receipts')
+         .update({
+           merchant_name: editedData.merchantName,
+           total_amount: editedData.totalAmount,
+           currency: editedData.currency,
+           receipt_date: editedData.date,
+           status: 'completed' // Mark as completed
+         })
+         .eq('id', currentReceiptId);
+
+       if (receiptUpdateError) throw receiptUpdateError;
+
+       // 1. Insert Receipt Items
+       const itemsToInsert = selectedItems.map(item => ({
+          receipt_id: currentReceiptId,
+          description: item.description,
+          price: item.price,
+          quantity: item.quantity
+       }));
+
+       const { error: itemsError } = await supabase
+         .from('receipt_items')
+         .insert(itemsToInsert);
+
+       if (itemsError) throw itemsError;
+
+       // 2. Insert Procurement Requests (for Dashboard visibility)
+       const requestsToInsert = selectedItems.map(item => ({
+          product_name: item.description,
+          target_price: item.price, // Using unit price as target
+          quantity: item.quantity,
+          status: RequestStatus.PENDING,
+          source: 'dashboard',
+          // receipt_id: currentReceiptId 
+       }));
+
+       const { error: reqError } = await supabase
+         .from('requests')
+         .insert(requestsToInsert);
+
+       if (reqError) throw reqError;
+
+       showToast(`Successfully imported ${selectedItems.length} items from receipt!`);
+       setIsReceiptReviewOpen(false);
+       setReceiptData(null);
+       setCurrentReceiptId(null);
+       fetchData(); // Refresh dashboard
+
+     } catch (error) {
+       console.error("Import failed:", error);
+       showToast("Failed to import receipt items.");
+     } finally {
+        setIsSavingReceipt(false);
+     }
+  };
+
   const budgetPercent = Math.min((stats.totalSpend / MONTHLY_BUDGET) * 100, 100);
 
   return (
@@ -240,7 +364,14 @@ const App: React.FC = () => {
                 >
                   <Plus className="w-5 h-5 text-lime" /> New Request
                 </button>
+                <button 
+                  onClick={() => setIsReceiptUploadOpen(true)}
+                  className="bg-white text-charcoal px-6 py-3 font-bold border-2 border-charcoal shadow-[4px_4px_0px_#1A1E1C] hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_#D4E768] hover:border-lime transition-all flex items-center gap-2"
+                >
+                  <FileText className="w-5 h-5" /> Input Receipt
+                </button>
               </div>
+
 
               {/* Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -315,6 +446,21 @@ const App: React.FC = () => {
            showToast("Option approved!");
            fetchData();
         }}
+      />
+
+      <ReceiptUploadModal 
+        isOpen={isReceiptUploadOpen}
+        onClose={() => setIsReceiptUploadOpen(false)}
+        onAnalyze={handleAnalyzeReceipt}
+        isAnalyzing={isAnalyzing}
+      />
+
+      <ReceiptReviewModal 
+        isOpen={isReceiptReviewOpen}
+        onClose={() => setIsReceiptReviewOpen(false)}
+        data={receiptData}
+        onConfirm={handleConfirmReceiptImport}
+        isSaving={isSavingReceipt}
       />
 
       {/* Toast Notification */}
