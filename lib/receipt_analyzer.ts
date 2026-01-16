@@ -42,7 +42,7 @@ async function processImage(file: File): Promise<string> {
       }
 
       // Scale Logic: Max dimension 1024px to reduce tokens while keeping readability
-      const MAX_DIM = 1024;
+      const MAX_DIM = 2048;
       let width = img.width;
       let height = img.height;
 
@@ -98,15 +98,16 @@ export async function analyzeReceipt(file: File): Promise<ReceiptData> {
     // If passing base64, we can keep the header if we rely on "detail: auto".
 
     // 2. Call OpenAI
-    const prompt = `Sei un sistema OCR specializzato nell'analisi di scontrini fiscali italiani. 
+    const prompt = `Sei un sistema OCR estremamente preciso specializzato nell'analisi di scontrini fiscali italiani. 
 Il tuo compito è estrarre i dati dall'immagine fornita e restituirli ESCLUSIVAMENTE in formato JSON.
 
 Regole:
-1. Analizza l'immagine e cerca: Nome Negozio, Data, Ora, Totale, Lista articoli.
+1. Analizza l'immagine e cerca: Nome Negozio, Data, Ora, Totale, Lista articoli, prosegui andando riga per riga dall'alto in basso sii estremamente preciso.
 2. Converti la data in formato ISO (YYYY-MM-DD).
 3. Se un campo non è leggibile o presente, imposta il valore a null.
 4. Categorizza lo scontrino basandoti sugli articoli o sul nome del negozio.
 5. Restituisci SOLO l'oggetto JSON, senza markdown o testo aggiuntivo.
+6. Se ci sono articoli identici segnati più volte in caso di manzcanza della colonna quantità, considera solo la quantità totale.
 
 Schema JSON richiesto:
 {
@@ -124,7 +125,7 @@ Schema JSON richiesto:
 }`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // Using gpt-4o for best vision capabilities
+      model: "gpt-4o-mini", // Using gpt-4o for best vision capabilities
       messages: [
         {
           role: "user",

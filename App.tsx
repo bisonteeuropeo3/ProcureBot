@@ -8,7 +8,8 @@ import {
   Settings,
   Menu,
   X,
-  AlertCircle
+  AlertCircle,
+  Receipt
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { ProcurementRequest, RequestStatus, DashboardStats } from './types';
@@ -17,13 +18,14 @@ import DashboardTable from './components/DashboardTable';
 import RequestForm from './components/RequestForm';
 import HistoryView from './components/HistoryView';
 import SettingsView from './components/SettingsView';
+import ReceiptsView from './components/ReceiptsView';
 import OptionSelectionModal from './components/OptionSelectionModal';
 import DashboardCharts from './components/DashboardCharts';
 import ReceiptUploadModal from './components/ReceiptUploadModal';
 import ReceiptReviewModal from './components/ReceiptReviewModal';
 import { analyzeReceipt, ReceiptData, ReceiptItem } from './lib/receipt_analyzer';
 
-type ViewPage = 'dashboard' | 'history' | 'settings';
+type ViewPage = 'dashboard' | 'history' | 'settings' | 'receipts';
 
 const App: React.FC = () => {
   const [requests, setRequests] = useState<ProcurementRequest[]>([]);
@@ -222,7 +224,7 @@ const App: React.FC = () => {
 
        if (receiptUpdateError) throw receiptUpdateError;
 
-       // 1. Insert Receipt Items
+       // 1. Insert Receipt Items (Only to receipt_items, NOT requests)
        const itemsToInsert = selectedItems.map(item => ({
           receipt_id: currentReceiptId,
           description: item.description,
@@ -236,23 +238,7 @@ const App: React.FC = () => {
 
        if (itemsError) throw itemsError;
 
-       // 2. Insert Procurement Requests (for Dashboard visibility)
-       const requestsToInsert = selectedItems.map(item => ({
-          product_name: item.description,
-          target_price: item.price, // Using unit price as target
-          quantity: item.quantity,
-          status: RequestStatus.PENDING,
-          source: 'dashboard',
-          // receipt_id: currentReceiptId 
-       }));
-
-       const { error: reqError } = await supabase
-         .from('requests')
-         .insert(requestsToInsert);
-
-       if (reqError) throw reqError;
-
-       showToast(`Successfully imported ${selectedItems.length} items from receipt!`);
+       showToast(`Successfully saved receipt with ${selectedItems.length} items!`);
        setIsReceiptReviewOpen(false);
        setReceiptData(null);
        setCurrentReceiptId(null);
@@ -260,7 +246,7 @@ const App: React.FC = () => {
 
      } catch (error) {
        console.error("Import failed:", error);
-       showToast("Failed to import receipt items.");
+       showToast("Failed to save receipt.");
      } finally {
         setIsSavingReceipt(false);
      }
@@ -295,6 +281,13 @@ const App: React.FC = () => {
             >
               <FileText className="w-5 h-5" />
               History
+            </button>
+            <button 
+              onClick={() => { setActivePage('receipts'); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === 'receipts' ? 'bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]' : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'}`}
+            >
+              <Receipt className="w-5 h-5" />
+              Receipts
             </button>
              <button 
               onClick={() => { setActivePage('settings'); setSidebarOpen(false); }}
@@ -419,6 +412,10 @@ const App: React.FC = () => {
 
           {!loading && activePage === 'history' && (
             <HistoryView requests={requests.filter(r => r.status === RequestStatus.APPROVED || r.status === RequestStatus.REJECTED)} />
+          )}
+
+          {!loading && activePage === 'receipts' && (
+            <ReceiptsView />
           )}
 
           {!loading && activePage === 'settings' && (
