@@ -160,6 +160,20 @@ const ReceiptsView: React.FC = () => {
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6">
+                    {/* Receipt Image */}
+                    {selectedReceipt.image_url && (
+                        <div className="mb-6 bg-gray-100 border-2 border-charcoal p-2 shadow-[4px_4px_0px_#1A1E1C]">
+                            <img 
+                                src={selectedReceipt.image_url} 
+                                alt="Original Receipt" 
+                                className="w-full h-auto object-contain max-h-[300px]"
+                            />
+                            <a href={selectedReceipt.image_url} target="_blank" rel="noopener noreferrer" className="block text-center text-xs font-bold text-forest mt-2 hover:underline">
+                                View Full Image
+                            </a>
+                        </div>
+                    )}
+
                     <div className="bg-white border-2 border-charcoal p-4 mb-6 shadow-[4px_4px_0px_#1A1E1C]">
                         <span className="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Amount</span>
                         <div className="text-3xl font-mono font-bold text-forest mt-1">

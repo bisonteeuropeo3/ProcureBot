@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, X, FileText, Loader2 } from 'lucide-react';
+import { resizeImage } from '../lib/image';
 
 interface ReceiptUploadModalProps {
   isOpen: boolean;
@@ -49,10 +50,19 @@ const ReceiptUploadModal: React.FC<ReceiptUploadModalProps> = ({ isOpen, onClose
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (file) {
-      onAnalyze(file, description);
+      try {
+        // Resize image: 80% smaller implies significant reduction. 
+        // Our utility aims for reasonable max-width which dramatically reduces files size (often >80% size reduction).
+        const resizedFile = await resizeImage(file);
+        onAnalyze(resizedFile, description);
+      } catch (err) {
+        console.error("Resize failed", err);
+        // Fallback to original
+        onAnalyze(file, description);
+      }
     }
   };
 

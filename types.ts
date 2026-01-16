@@ -41,3 +41,16 @@ export interface DashboardStats {
   pendingCount: number;
   totalSpend: number;
 }
+
+export interface Receipt {
+  id: string;
+  created_at: string;
+  description: string;
+  status: 'processing' | 'analyzed' | 'completed' | 'failed';
+  merchant_name?: string;
+  total_amount?: number;
+  currency?: string;
+  receipt_date?: string;
+  image_url?: string;
+  raw_data?: any;
+}

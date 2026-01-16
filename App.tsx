@@ -9,10 +9,10 @@ import {
   Menu,
   X,
   AlertCircle,
-  Receipt
+  Receipt as ReceiptIcon
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
-import { ProcurementRequest, RequestStatus, DashboardStats } from './types';
+import { ProcurementRequest, RequestStatus, DashboardStats, Receipt } from './types';
 import StatCard from './components/StatCard';
 import DashboardTable from './components/DashboardTable';
 import RequestForm from './components/RequestForm';
@@ -23,12 +23,14 @@ import OptionSelectionModal from './components/OptionSelectionModal';
 import DashboardCharts from './components/DashboardCharts';
 import ReceiptUploadModal from './components/ReceiptUploadModal';
 import ReceiptReviewModal from './components/ReceiptReviewModal';
+import PendingReceiptsList from './components/PendingReceiptsList';
 import { analyzeReceipt, ReceiptData, ReceiptItem } from './lib/receipt_analyzer';
 
 type ViewPage = 'dashboard' | 'history' | 'settings' | 'receipts';
 
 const App: React.FC = () => {
   const [requests, setRequests] = useState<ProcurementRequest[]>([]);
+  const [pendingReceipts, setPendingReceipts] = useState<Receipt[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ totalSavings: 0, pendingCount: 0, totalSpend: 0 });
   
   // Modal States
@@ -85,21 +87,47 @@ const App: React.FC = () => {
       })
       .subscribe();
 
+    // Setup Realtime Subscription for RECEIPTS
+    const receiptsSub = supabase
+      .channel('public:receipts')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'receipts' }, (payload) => {
+         console.log("Realtime Receipts Update:", payload);
+         fetchData();
+         
+         if (payload.eventType === 'UPDATE' && payload.new.status === 'analyzed') {
+             showToast(`Receipt analyzed: ${payload.new.merchant_name || 'Ready for review'}`);
+         }
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(requestsSub);
       supabase.removeChannel(optionsSub);
+      supabase.removeChannel(receiptsSub);
     };
   }, []);
 
   const fetchData = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch Requests
+      const { data: reqData, error: reqError } = await supabase
         .from('requests')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
-      setRequests(data as ProcurementRequest[]);
+      if (reqError) throw reqError;
+      setRequests(reqData as ProcurementRequest[]);
+
+      // Fetch Pending Receipts
+      const { data: recData, error: recError } = await supabase
+        .from('receipts')
+        .select('*')
+        .or('status.eq.processing,status.eq.analyzed')
+        .order('created_at', { ascending: false });
+
+      if (recError) throw recError;
+      setPendingReceipts(recData as Receipt[]);
+
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -158,50 +186,91 @@ const App: React.FC = () => {
 
   // Receipt Handlers
   const handleAnalyzeReceipt = async (file: File, description: string) => {
+    // 1. Close Modal & Show Toast Immediately
+    setIsReceiptUploadOpen(false);
+    setIsAnalyzing(true);
+    showToast("Receipt uploaded! Analyzing in background...");
+
     try {
-      setIsAnalyzing(true);
-      
-      // 1. Create Receipt Entry (Processing)
+      // 1b. Upload Image to Storage
+      // Generate unique path
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('receipts')
+        .upload(filePath, file);
+
+      if (uploadError) {
+          console.error("Storage upload failed:", uploadError);
+          if (uploadError.message.includes("Bucket not found") || uploadError.message.includes("not found")) {
+             throw new Error("Supabase Storage bucket 'receipts' not found. Please create it in your Supabase Dashboard as a public bucket.");
+          }
+          throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('receipts')
+        .getPublicUrl(filePath);
+
+      // 2. Create Receipt Entry (Processing)
       const { data: receiptCallback, error: receiptError } = await supabase
         .from('receipts')
         .insert({
           description,
           status: 'processing',
-          image_url: 'placeholder_for_now' // We aren't uploading to storage yet
+          image_url: publicUrl
         })
         .select()
         .single();
       
       if (receiptError) throw receiptError;
-      setCurrentReceiptId(receiptCallback.id);
-
-      // 2. Analyze
-      const data = await analyzeReceipt(file);
-      setReceiptData(data);
       
-      // 3. Update Receipt with AI Data
-      await supabase
-        .from('receipts')
-        .update({
-          merchant_name: data.merchantName,
-          total_amount: data.totalAmount,
-          currency: data.currency,
-          receipt_date: data.date,
-          status: 'analyzed',
-          raw_data: data // Save full JSON for debug
-        })
-        .eq('id', receiptCallback.id);
+      fetchData(); // Force fetch to show processing state immediately
 
-      setIsReceiptUploadOpen(false);
-      setIsReceiptReviewOpen(true);
+      // 3. Analyze (Async)
+      analyzeReceipt(file).then(async (data) => {
+          // 4. Update Receipt with AI Data
+          await supabase
+            .from('receipts')
+            .update({
+              merchant_name: data.merchantName,
+              total_amount: data.totalAmount,
+              currency: data.currency,
+              receipt_date: data.date,
+              status: 'analyzed',
+              raw_data: data
+            })
+            .eq('id', receiptCallback.id);
+          
+          showToast(`Analysis complete: ${data.merchantName || 'Unknown Merchant'}`);
+          fetchData(); 
+      }).catch(err => {
+          console.error("Async analysis failed:", err);
+          showToast("Analysis failed for receipt.");
+          supabase.from('receipts').update({ status: 'failed' }).eq('id', receiptCallback.id).then(fetchData);
+      });
 
     } catch (error: any) {
-      console.error("Receipt analysis failed:", error);
-      showToast(`Error: ${error.message || "Failed to analyze receipt"}`);
-      // Ideally delete the partial receipt or mark as failed
+      console.error("Receipt upload init failed:", error);
+      showToast(`Error: ${error.message}`);
     } finally {
-      setIsAnalyzing(false);
+        setIsAnalyzing(false);
     }
+  };
+
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+
+  const handleReviewReceiptFromList = (receipt: Receipt) => {
+      if (receipt.raw_data) {
+          setReceiptData(receipt.raw_data);
+          setCurrentReceiptId(receipt.id);
+          setImageUrl(receipt.image_url); // Pass image URL
+          setIsReceiptReviewOpen(true);
+      } else {
+          showToast("Error: No analysis data found.");
+      }
   };
 
   const handleConfirmReceiptImport = async (editedData: ReceiptData, selectedItems: ReceiptItem[]) => {
@@ -286,7 +355,7 @@ const App: React.FC = () => {
               onClick={() => { setActivePage('receipts'); setSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === 'receipts' ? 'bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]' : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'}`}
             >
-              <Receipt className="w-5 h-5" />
+              <ReceiptIcon className="w-5 h-5" />
               Receipts
             </button>
              <button 
@@ -351,18 +420,20 @@ const App: React.FC = () => {
                   <h1 className="text-3xl md:text-4xl font-display font-bold text-charcoal">Dashboard</h1>
                   <p className="text-gray-500 mt-1">Manage tail spend requests and approvals.</p>
                 </div>
-                <button 
-                  onClick={() => setIsFormOpen(true)}
-                  className="bg-forest text-white px-6 py-3 font-bold border-2 border-charcoal shadow-[4px_4px_0px_#1A1E1C] hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_#D4E768] hover:border-lime transition-all flex items-center gap-2"
-                >
-                  <Plus className="w-5 h-5 text-lime" /> New Request
-                </button>
-                <button 
-                  onClick={() => setIsReceiptUploadOpen(true)}
-                  className="bg-white text-charcoal px-6 py-3 font-bold border-2 border-charcoal shadow-[4px_4px_0px_#1A1E1C] hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_#D4E768] hover:border-lime transition-all flex items-center gap-2"
-                >
-                  <FileText className="w-5 h-5" /> Input Receipt
-                </button>
+                <div className="flex gap-4">
+                    <button 
+                    onClick={() => setIsReceiptUploadOpen(true)}
+                    className="bg-white text-charcoal px-6 py-3 font-bold border-2 border-charcoal shadow-[4px_4px_0px_#1A1E1C] hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_#D4E768] hover:border-lime transition-all flex items-center gap-2"
+                    >
+                    <FileText className="w-5 h-5" /> Input Receipt
+                    </button>
+                    <button 
+                    onClick={() => setIsFormOpen(true)}
+                    className="bg-forest text-white px-6 py-3 font-bold border-2 border-charcoal shadow-[4px_4px_0px_#1A1E1C] hover:-translate-y-0.5 hover:shadow-[6px_6px_0px_#D4E768] hover:border-lime transition-all flex items-center gap-2"
+                    >
+                    <Plus className="w-5 h-5 text-lime" /> New Request
+                    </button>
+                </div>
               </div>
 
 
@@ -391,10 +462,19 @@ const App: React.FC = () => {
 
               {/* Data Table */}
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                    <div className="w-2 h-6 bg-lime"></div>
-                    <h3 className="text-xl font-bold text-charcoal">Live Requests</h3>
-                </div>
+                {(pendingReceipts.length > 0 || (requests.length > 0)) && (
+                   <div className="flex items-center gap-2 mb-4">
+                        <div className="w-2 h-6 bg-lime"></div>
+                        <h3 className="text-xl font-bold text-charcoal">Live Requests</h3>
+                    </div>
+                )}
+
+                {/* Pending Receipts List */}
+                <PendingReceiptsList 
+                    receipts={pendingReceipts}
+                    onReview={handleReviewReceiptFromList}
+                />
+
                 <DashboardTable 
                     // Show pending or action required items
                     requests={requests.filter(r => r.status === RequestStatus.PENDING || r.status === RequestStatus.ACTION_REQUIRED)} 
@@ -456,6 +536,7 @@ const App: React.FC = () => {
         isOpen={isReceiptReviewOpen}
         onClose={() => setIsReceiptReviewOpen(false)}
         data={receiptData}
+        imageUrl={imageUrl}
         onConfirm={handleConfirmReceiptImport}
         isSaving={isSavingReceipt}
       />
