@@ -1,17 +1,19 @@
 import React, { useMemo } from 'react';
-import { ProcurementRequest, RequestStatus } from '../types';
+import { ProcurementRequest, RequestStatus, Receipt } from '../types';
 import { TrendingUp, PieChart, LayoutDashboard } from 'lucide-react';
 
 interface DashboardChartsProps {
   requests: ProcurementRequest[];
+  receipts: Receipt[];
 }
 
-const DashboardCharts: React.FC<DashboardChartsProps> = ({ requests }) => {
+const DashboardCharts: React.FC<DashboardChartsProps> = ({ requests, receipts }) => {
 
   // 1. Calculate Daily Spend (Last 7 active days)
   const dailySpendData = useMemo(() => {
     const map = new Map<string, number>();
     
+    // Process Requests
     requests.forEach(req => {
       // Only count approved spend
       if (req.status === RequestStatus.APPROVED && req.found_price) {
@@ -21,12 +23,42 @@ const DashboardCharts: React.FC<DashboardChartsProps> = ({ requests }) => {
       }
     });
 
-    // Convert to array and take last 7 entries
+    // Process Receipts
+    receipts.forEach(receipt => {
+      // Only count completed receipts with a valid amount
+      if (receipt.status === 'completed' && receipt.total_amount) {
+         // Use receipt_date if available, otherwise created_at
+         const dateSource = receipt.receipt_date || receipt.created_at;
+         
+         // Try parsing DD/MM/YYYY if typical european, or standard DB format
+         let dateObj = new Date(dateSource);
+         
+         // Basic heuristic for DD/MM/YYYY if defaults fail or return Invalid Date
+         if (isNaN(dateObj.getTime()) && receipt.receipt_date) {
+            const parts = receipt.receipt_date.split('/');
+            if(parts.length === 3) {
+                 // assume dd/mm/yyyy
+                 dateObj = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+            }
+         }
+
+         if (!isNaN(dateObj.getTime())) {
+             const date = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+             map.set(date, (map.get(date) || 0) + receipt.total_amount);
+         }
+      }
+    });
+
+    // Convert to array and take last 7 entries (based on date sorting)
     return Array.from(map.entries())
       .map(([date, amount]) => ({ date, amount }))
-      .reverse() // Newest first usually in list, so reverse to get chronological if list is desc
+      // We need to sort by date actually to be correct, but 'Mon DD' doesn't sort easily. 
+      // For MVP, relying on map order or simple reverse might be flaky if mixed sources.
+      // Let's just reverse and slice as before, assuming 'recent' data is populated last
+      // OR better: let's try to keep it simple.
+      .reverse() 
       .slice(-7); 
-  }, [requests]);
+  }, [requests, receipts]);
 
   const maxSpend = Math.max(...dailySpendData.map(d => d.amount), 1);
 

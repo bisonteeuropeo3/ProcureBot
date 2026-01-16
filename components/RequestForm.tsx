@@ -6,11 +6,12 @@ import { RequestStatus } from '../types';
 
 interface RequestFormProps {
   isOpen: boolean;
+  userId: string;
   onClose: () => void;
   onSubmitSuccess: () => void;
 }
 
-const RequestForm: React.FC<RequestFormProps> = ({ isOpen, onClose, onSubmitSuccess }) => {
+const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSubmitSuccess }) => {
   const [productName, setProductName] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [targetPrice, setTargetPrice] = useState('');
@@ -37,6 +38,7 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, onClose, onSubmitSucc
             target_price: numericTargetPrice,
             source: 'dashboard',
             status: RequestStatus.PENDING,
+            user_id: userId
           }
         ])
         .select()

@@ -21,7 +21,11 @@ interface ReceiptItem {
   price: number;
 }
 
-const ReceiptsView: React.FC = () => {
+interface ReceiptsViewProps {
+  userId: string;
+}
+
+const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
@@ -30,13 +34,14 @@ const ReceiptsView: React.FC = () => {
 
   useEffect(() => {
     fetchReceipts();
-  }, []);
+  }, [userId]); // Add userId dependency
 
   const fetchReceipts = async () => {
     try {
       const { data, error } = await supabase
         .from('receipts')
         .select('*')
+        .eq('user_id', userId) // Filter by user_id
         .eq('status', 'completed') // Only show completed/accepted receipts
         .order('receipt_date', { ascending: false });
 

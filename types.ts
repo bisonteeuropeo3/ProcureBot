@@ -6,6 +6,31 @@ export enum RequestStatus {
   REJECTED = 'rejected'
 }
 
+export enum ProcessingStep {
+  IDLE = 'idle',
+  PARSING = 'parsing',
+  SCOUTING = 'scouting',
+  CALCULATING = 'calculating',
+  COMPLETE = 'complete',
+  ERROR = 'error'
+}
+
+export interface ProcurementItem {
+  productName: string;
+  originalPriceEstimate: number;
+  foundPrice: number;
+  quantity: number;
+  savings: number;
+  savingsPercentage: number;
+  supplier: string;
+  reasoning: string;
+}
+
+export interface ProcurementReport {
+  items: ProcurementItem[];
+  totalSavings: number;
+}
+
 export interface SourcingOption {
   id: string;
   request_id: string;
