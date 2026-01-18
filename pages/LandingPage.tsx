@@ -290,9 +290,9 @@ const LandingPage = () => {
             </div>
 
             {/* Visual Abstract Representation */}
-            <div className="relative hidden lg:block -mt-24">
+            <div className="relative hidden lg:block mt-4">
               {/* Card 1: The Request */}
-              <div className="absolute top-0 right-20 w-72 bg-white border-2 border-[#1A1E1C] p-6 shadow-[8px_8px_0px_#1A1E1C] z-10 rotate-[-2deg]">
+              <div className="absolute -top-32 right-20 w-72 bg-white border-2 border-[#1A1E1C] p-6 shadow-[8px_8px_0px_#1A1E1C] z-10 rotate-[-2deg]">
                 <div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-2">
                   <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
                     <span className="font-bold text-xs">M</span>
@@ -308,7 +308,7 @@ const LandingPage = () => {
               </div>
 
               {/* Card 2: The Logic (AI) */}
-              <div className="absolute top-32 right-0 w-80 bg-[#2D4A3E] border-2 border-[#1A1E1C] p-6 shadow-[8px_8px_0px_#D4E768] z-20">
+              <div className="absolute -top-4 right-0 w-80 bg-[#2D4A3E] border-2 border-[#1A1E1C] p-6 shadow-[8px_8px_0px_#D4E768] z-20">
                 <div className="flex justify-between items-center mb-4">
                   <span className="text-[#D4E768] font-mono text-xs uppercase">AI Parsing...</span>
                   <Zap className="text-[#D4E768] w-4 h-4" />
@@ -330,7 +330,7 @@ const LandingPage = () => {
               </div>
 
               {/* Card 3: The Result */}
-              <div className="absolute top-64 right-32 w-72 bg-[#D4E768] border-2 border-[#1A1E1C] p-6 shadow-[8px_8px_0px_#1A1E1C] z-30 rotate-[2deg]">
+              <div className="absolute top-28 right-32 w-72 bg-[#D4E768] border-2 border-[#1A1E1C] p-6 shadow-[8px_8px_0px_#1A1E1C] z-30 rotate-[2deg]">
                 <div className="flex items-center gap-2 mb-2">
                   <CheckCircle2 className="w-5 h-5 text-[#2D4A3E]" />
                   <span className="font-bold text-[#2D4A3E] uppercase text-xs">Risparmio Trovato</span>
