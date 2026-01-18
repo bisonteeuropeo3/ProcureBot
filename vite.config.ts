@@ -18,6 +18,37 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      build: {
+        // Enable minification for production
+        minify: 'terser',
+        terserOptions: {
+          compress: {
+            drop_console: true,
+            drop_debugger: true,
+          },
+        },
+        // Chunk splitting for better caching
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              // Vendor chunk for React
+              'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+              // UI libraries chunk
+              'vendor-ui': ['lucide-react'],
+            },
+          },
+        },
+        // Target modern browsers for smaller bundles
+        target: 'es2020',
+        // Generate source maps for debugging (optional, remove for smaller builds)
+        sourcemap: false,
+        // Chunk size warning limit
+        chunkSizeWarningLimit: 500,
+      },
+      // Optimize dependencies
+      optimizeDeps: {
+        include: ['react', 'react-dom', 'react-router-dom', 'lucide-react'],
+      },
     };
 });

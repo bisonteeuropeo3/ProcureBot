@@ -1,50 +1,114 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="ProcureBot - Il tuo assistente AI per il procurement aziendale. Automatizza gli acquisti, analizza scontrini e risparmia tempo e denaro con l'intelligenza artificiale."
+    />
+    <meta name="theme-color" content="#2D4A3E" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:title" content="ProcureBot | AI Procurement Agent" />
+    <meta
+      property="og:description"
+      content="Automatizza il Tail Spend aziendale con l'AI. Risparmia tempo e denaro sui piccoli acquisti."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ProcureBot | AI Procurement Agent</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Syne:wght@400;600;700;800&display=swap"
-    rel="stylesheet">
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            forest: '#2D4A3E',
-            lime: '#D4E768',
-            cream: '#F3F1EA',
-            charcoal: '#1A1E1C',
-          },
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            display: ['Syne', 'sans-serif'],
+    <title>ProcureBot | AI Procurement Agent</title>
+
+    <!-- Preload Critical Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@600;700;800&display=swap"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@600;700;800&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media = 'all'"
+    />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Syne:wght@600;700;800&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
+
+    <!-- Tailwind CDN with defer -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              forest: "#2D4A3E",
+              lime: "#D4E768",
+              cream: "#F3F1EA",
+              charcoal: "#1A1E1C",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              display: ["Syne", "sans-serif"],
+            },
           },
         },
-      },
-    }
-  </script>
-  <style>
-    /* Custom scrollbar for table container */
-    .scrollbar-hide::-webkit-scrollbar {
-      display: none;
-    }
+      };
+    </script>
 
-    .scrollbar-hide {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-  </style>
-</head>
+    <style>
+      /* Critical CSS - Inline for faster FCP */
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background-color: #f3f1ea;
+        color: #1a1e1c;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
 
-<body class="bg-cream text-charcoal antialiased">
-  <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+      /* Font fallback while loading */
+      h1,
+      h2,
+      h3,
+      h4,
+      h5 {
+        font-family:
+          "Syne",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
 
+      /* Prevent layout shift */
+      #root {
+        min-height: 100vh;
+      }
+
+      /* Custom scrollbar for table container */
+      .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+      }
+
+      .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    </style>
+  </head>
+
+  <body class="bg-cream text-charcoal antialiased">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>

@@ -49,7 +49,7 @@ const LoginPage = () => {
     };
 
     return (
-        <div className="h-screen flex items-center justify-center bg-[#FDFCF8] text-[#1A1E1C] font-sans">
+        <div className="h-screen flex items-center justify-center bg-[#FDFCF8] text-[#1A1E1C] font-sans" role="main">
              {/* Styles (reusing some global variables via inline style) */}
              <style>{`
                 .brutal-border {
@@ -88,32 +88,36 @@ const LoginPage = () => {
                 <h2 className="text-2xl font-bold mb-6 text-center">{isSignUp ? 'Create Account' : 'Login'}</h2>
 
                 {error && (
-                    <div className="mb-4 p-3 bg-red-100 border border-red-500 text-red-700 text-sm">
+                    <div className="mb-4 p-3 bg-red-100 border border-red-500 text-red-700 text-sm" role="alert" aria-live="assertive">
                         {error}
                     </div>
                 )}
 
                 {message && (
-                    <div className="mb-4 p-3 bg-green-100 border border-green-500 text-green-700 text-sm">
+                    <div className="mb-4 p-3 bg-green-100 border border-green-500 text-green-700 text-sm" role="status" aria-live="polite">
                         {message}
                     </div>
                 )}
 
                 <form onSubmit={handleAuth} className="space-y-6">
                     <div>
-                        <label className="block text-sm font-bold mb-2">Email</label>
+                        <label htmlFor="email-input" className="block text-sm font-bold mb-2">Email</label>
                         <input 
+                            id="email-input"
                             type="email" 
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="w-full p-3 border-2 border-[#1A1E1C] focus:outline-none focus:border-[#2D4A3E] focus:ring-1 focus:ring-[#2D4A3E]"
                             placeholder="admin@company.com"
+                            autoComplete="email"
+                            aria-describedby={error ? "error-message" : undefined}
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-bold mb-2">Password</label>
+                        <label htmlFor="password-input" className="block text-sm font-bold mb-2">Password</label>
                         <input 
+                            id="password-input"
                             type="password" 
                             required
                             value={password}
@@ -121,6 +125,7 @@ const LoginPage = () => {
                             className="w-full p-3 border-2 border-[#1A1E1C] focus:outline-none focus:border-[#2D4A3E] focus:ring-1 focus:ring-[#2D4A3E]"
                             placeholder="********"
                             minLength={6}
+                            autoComplete={isSignUp ? "new-password" : "current-password"}
                         />
                     </div>
 
@@ -128,15 +133,22 @@ const LoginPage = () => {
                         type="submit" 
                         disabled={loading}
                         className="w-full brutal-btn py-3 font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                        aria-busy={loading}
+                        aria-label={isSignUp ? 'Crea account' : 'Accedi'}
                     >
-                        {loading ? <Loader2 className="animate-spin" /> : <>{isSignUp ? 'Sign Up' : 'Sign In'} <ArrowRight size={18} /></>}
+                        {loading ? <Loader2 className="animate-spin" aria-label="Caricamento" /> : <>{isSignUp ? 'Sign Up' : 'Sign In'} <ArrowRight size={18} aria-hidden="true" /></>}
                     </button>
                 </form>
 
                  <div className="mt-6 text-center text-sm text-gray-500 space-y-2">
                     <p>
                         {isSignUp ? "Already have an account? " : "Don't have an account? "}
-                        <button onClick={() => setIsSignUp(!isSignUp)} className="link-toggle">
+                        <button 
+                            type="button"
+                            onClick={() => setIsSignUp(!isSignUp)} 
+                            className="link-toggle"
+                            aria-label={isSignUp ? 'Vai al login' : 'Crea un nuovo account'}
+                        >
                             {isSignUp ? "Login" : "Sign Up"}
                         </button>
                     </p>

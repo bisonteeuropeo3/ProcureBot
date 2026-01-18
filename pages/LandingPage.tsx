@@ -174,6 +174,13 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-[#FDFCF8] text-[#1A1E1C] font-sans selection:bg-[#2D4A3E] selection:text-white overflow-x-hidden">
+      {/* Skip to main content link for accessibility */}
+      <a 
+        href="#main-content" 
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:bg-[#2D4A3E] focus:text-white focus:px-4 focus:py-2 focus:rounded"
+      >
+        Vai al contenuto principale
+      </a>
       <GlobalStyles />
 
       {/* --- NAVIGATION --- */}
@@ -192,16 +199,24 @@ const LandingPage = () => {
               <a href="#soluzione" className="text-[#1A1E1C] hover:text-[#2D4A3E] font-medium">Come Funziona</a>
               <a href="#pricing" className="text-[#1A1E1C] hover:text-[#2D4A3E] font-medium">Pricing</a>
               <button 
+                type="button"
                 onClick={goToLogin}
                 className="brutal-btn px-6 py-2 font-bold text-sm"
+                aria-label="Accedi alla demo di ProcureBot"
               >
                 Accedi alla Demo
               </button>
             </div>
 
             <div className="md:hidden">
-              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-[#1A1E1C]">
-                {isMenuOpen ? <X size={28} /> : <Menu size={28} />}
+              <button 
+                type="button"
+                onClick={() => setIsMenuOpen(!isMenuOpen)} 
+                className="text-[#1A1E1C]"
+                aria-label={isMenuOpen ? "Chiudi menu" : "Apri menu"}
+                aria-expanded={isMenuOpen}
+              >
+                {isMenuOpen ? <X size={28} aria-hidden="true" /> : <Menu size={28} aria-hidden="true" />}
               </button>
             </div>
           </div>
@@ -226,7 +241,8 @@ const LandingPage = () => {
       </nav>
 
       {/* --- HERO SECTION --- */}
-      <section className="relative pt-20 pb-16 lg:pt-28 lg:pb-24 overflow-hidden">
+      <main id="main-content" role="main">
+      <section className="relative pt-20 pb-16 lg:pt-28 lg:pb-24 overflow-hidden" aria-labelledby="hero-heading">
         <div className="absolute inset-0 hero-pattern z-0"></div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -238,7 +254,7 @@ const LandingPage = () => {
                 <span className="text-xs font-bold uppercase tracking-wider text-[#1A1E1C]">New Feature: Receipt Analysis</span>
               </div>
               
-              <h1 className="text-5xl lg:text-7xl font-extrabold leading-[1.1] text-[#1A1E1C]">
+              <h1 id="hero-heading" className="text-5xl lg:text-7xl font-extrabold leading-[1.1] text-[#1A1E1C]">
                 Il tuo Junior Buyer <br/>
                 <span className="highlight-text">Virtuale.</span>
               </h1>
@@ -257,8 +273,8 @@ const LandingPage = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                   />
-                  <button type="submit" className="brutal-btn px-8 py-4 font-bold flex items-center justify-center gap-2">
-                    Provalo Ora <ArrowRight size={18} />
+                  <button type="submit" className="brutal-btn px-8 py-4 font-bold flex items-center justify-center gap-2" aria-label="Prova ProcureBot ora">
+                    Provalo Ora <ArrowRight size={18} aria-hidden="true" />
                   </button>
                 </form>
               ) : (
@@ -379,11 +395,14 @@ const LandingPage = () => {
                             </div>
 
                             <button 
+                                type="button"
                                 onClick={runDemo}
                                 disabled={processingStep !== ProcessingStep.IDLE && processingStep !== ProcessingStep.COMPLETE && processingStep !== ProcessingStep.ERROR}
                                 className="w-full bg-[#D4E768] text-[#1A1E1C] font-bold py-3 hover:bg-white transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label="Avvia la demo di ProcureBot"
+                                aria-busy={processingStep !== ProcessingStep.IDLE && processingStep !== ProcessingStep.COMPLETE && processingStep !== ProcessingStep.ERROR}
                             >
-                                <Send size={18} />
+                                <Send size={18} aria-hidden="true" />
                                 Lancia ProcureBot
                             </button>
                         </div>
@@ -446,12 +465,14 @@ const LandingPage = () => {
                             </div>
                             
                             <div className="mt-4 flex gap-2">
-                                <button className="flex-1 bg-white border-2 border-[#1A1E1C] py-2 font-bold text-sm hover:bg-gray-100">
+                                <button type="button" className="flex-1 bg-white border-2 border-[#1A1E1C] py-2 font-bold text-sm hover:bg-gray-100" aria-label="Scarica il report in formato PDF">
                                     Scarica PDF
                                 </button>
                                 <button 
+                                    type="button"
                                     onClick={goToLogin}
                                     className="flex-1 bg-[#2D4A3E] text-white border-2 border-[#1A1E1C] py-2 font-bold text-sm hover:bg-[#1A1E1C] text-center"
+                                    aria-label="Approva l'ordine e procedi"
                                 >
                                     Approva Ordine
                                 </button>
@@ -660,8 +681,10 @@ const LandingPage = () => {
               </ul>
 
               <button 
+                type="button"
                 onClick={goToLogin}
                 className="w-full bg-[#D4E768] text-[#1A1E1C] font-bold py-4 mt-8 hover:bg-white transition-colors border-2 border-transparent hover:border-[#D4E768]"
+                aria-label="Inizia a usare ProcureBot"
               >
                 Inizia ora
               </button>
@@ -673,9 +696,10 @@ const LandingPage = () => {
           </p>
         </div>
       </section>
+      </main>
 
       {/* --- FOOTER --- */}
-      <footer className="bg-[#1A1E1C] text-white border-t border-gray-800">
+      <footer className="bg-[#1A1E1C] text-white border-t border-gray-800" role="contentinfo">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-2">
