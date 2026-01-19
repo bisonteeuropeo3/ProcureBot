@@ -536,7 +536,7 @@ const LandingPage = () => {
                {/* Transformation Visual */}
                <div className="flex items-center gap-4 w-full">
                   {/* Scontrino */}
-                  <div className="w-1/2 bg-white p-4 text-[10px] font-mono leading-tight shadow-md rotate-[-2deg] border border-gray-200">
+                  <div className="w-1/2 bg-white p-4 text-[10px] text-[#1A1E1C] font-mono leading-tight shadow-md rotate-[-2deg] border border-gray-200">
                       <div className="text-center font-bold border-b border-dashed border-gray-300 pb-2 mb-2">
                         Ristorante Da Mario<br/>
                         12/05/2026
@@ -624,7 +624,7 @@ const LandingPage = () => {
             ].map((item, idx) => (
               <div key={idx} className="bg-white p-6 border-2 border-[#1A1E1C] hover:shadow-[6px_6px_0px_#2D4A3E] transition-all duration-200 cursor-default group">
                 <div className="flex justify-between items-start mb-6">
-                  <span className="text-4xl font-black text-[#F3F1EA] stroke-black text-stroke-2 group-hover:text-[#D4E768] transition-colors">
+                  <span className="text-4xl font-black text-[#1A1E1C] stroke-black text-stroke-2 group-hover:text-[#D4E768] transition-colors">
                     {item.step}
                   </span>
                   <div className="w-10 h-10 bg-[#2D4A3E] text-white flex items-center justify-center rounded-none">
