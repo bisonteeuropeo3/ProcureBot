@@ -56,6 +56,12 @@ const OptionSelectionModal: React.FC<OptionSelectionModalProps> = ({ request, is
         })
         .eq('id', request.id);
 
+      // 3. Delete all sourcing options for this request
+      await supabase
+        .from('sourcing_options')
+        .delete()
+        .eq('request_id', request.id);
+
       onSuccess();
       onClose();
     } catch (e) {
@@ -80,6 +86,12 @@ const OptionSelectionModal: React.FC<OptionSelectionModalProps> = ({ request, is
           link: null
         })
         .eq('id', request.id);
+
+      // Delete all sourcing options for this request
+      await supabase
+        .from('sourcing_options')
+        .delete()
+        .eq('request_id', request.id);
 
       onSuccess();
       onClose();

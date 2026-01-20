@@ -241,6 +241,13 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
         .eq("id", id);
 
       if (error) throw error;
+
+      // Delete all sourcing options for this request
+      await supabase
+        .from("sourcing_options")
+        .delete()
+        .eq("request_id", id);
+
       showToast("Request rejected.");
       setRequests((prev) =>
         prev.map((r) =>
