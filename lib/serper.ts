@@ -33,7 +33,8 @@ export async function searchGoogleShopping(query: string): Promise<SerperShoppin
   const raw = JSON.stringify({
     "q": query,
     "gl": "it",
-    "hl": "it"
+    "hl": "it",
+    "num": 40
   });
 
   const requestOptions: RequestInit = {

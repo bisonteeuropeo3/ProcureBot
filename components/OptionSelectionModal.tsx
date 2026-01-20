@@ -66,6 +66,31 @@ const OptionSelectionModal: React.FC<OptionSelectionModalProps> = ({ request, is
     }
   };
 
+  const handleApproveWithoutSuggestions = async () => {
+    if (!request) return;
+    setProcessingId('manual');
+
+    try {
+      // Approve at target price without any sourcing option
+      await supabase
+        .from('requests')
+        .update({
+          status: 'approved',
+          found_price: request.target_price,
+          link: null
+        })
+        .eq('id', request.id);
+
+      onSuccess();
+      onClose();
+    } catch (e) {
+      console.error("Error approving without suggestions", e);
+      alert("Failed to approve request.");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   if (!isOpen || !request) return null;
 
   return (
@@ -95,6 +120,15 @@ const OptionSelectionModal: React.FC<OptionSelectionModalProps> = ({ request, is
             <div className="text-sm">
                  <span className="block text-gray-500 text-xs uppercase tracking-wide">Quantity</span>
                  <span className="font-bold text-lg">{request.quantity}</span>
+            </div>
+            <div className="ml-auto">
+              <button
+                onClick={handleApproveWithoutSuggestions}
+                disabled={!!processingId}
+                className="bg-white text-charcoal px-4 py-2 font-bold text-sm border-2 border-charcoal hover:bg-lime hover:shadow-[4px_4px_0px_#1A1E1C] hover:-translate-y-0.5 transition-all disabled:opacity-70"
+              >
+                Approve Without Suggestions
+              </button>
             </div>
           </div>
 

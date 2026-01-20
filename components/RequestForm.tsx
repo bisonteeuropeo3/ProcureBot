@@ -22,19 +22,28 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setStatusMessage('Creating request...');
+    
+    // Capture form values before closing
+    const capturedProductName = productName;
+    const capturedQuantity = quantity;
+    const numericTargetPrice = parseFloat(targetPrice);
 
+    // Reset form and close immediately
+    setProductName('');
+    setQuantity(1);
+    setTargetPrice('');
+    onSubmitSuccess();
+    onClose();
+
+    // Run sourcing in background
     try {
-      const numericTargetPrice = parseFloat(targetPrice);
-
       // 1. Insert Request into Supabase
       const { data: requestData, error: requestError } = await supabase
         .from('requests')
         .insert([
           {
-            product_name: productName,
-            quantity: quantity,
+            product_name: capturedProductName,
+            quantity: capturedQuantity,
             target_price: numericTargetPrice,
             source: 'dashboard',
             status: RequestStatus.PENDING,
@@ -50,12 +59,9 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
       const requestId = requestData.id;
 
       // 2. Search Google Shopping via Serper
-      setStatusMessage('Searching web for best prices...');
-      const shoppingResults = await searchGoogleShopping(productName);
+      const shoppingResults = await searchGoogleShopping(capturedProductName);
 
       // 3. Transform and Save Options
-      setStatusMessage(`Processing ${shoppingResults.length} results...`);
-      
       if (shoppingResults.length > 0) {
         const optionsToInsert = shoppingResults.slice(0, 10).map((item) => ({
           request_id: requestId,
@@ -86,33 +92,11 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
                 .eq('id', requestId);
         }
       }
-
-      onSubmitSuccess();
-      onClose();
-      
-      // Reset form
-      setProductName('');
-      setQuantity(1);
-      setTargetPrice('');
-      setStatusMessage('');
       
     } catch (error: any) {
       console.error('Error processing request:', error);
-      
-      // Show specific error to user
-      let errorMessage = 'Failed to process request.';
-      if (error.message.includes('Missing Serper API Key')) {
-        errorMessage = 'Missing VITE_SERPER_API_KEY in .env.local file.';
-      } else if (error.message.includes('Serper API failed')) {
-        errorMessage = `Search Provider Error: ${error.message}`;
-      } else {
-        errorMessage = `Error: ${error.message}`;
-      }
-      
-      alert(errorMessage);
-      setStatusMessage('Failed.');
-    } finally {
-      setIsSubmitting(false);
+      // Errors are logged but not shown since modal is closed
+      // The realtime subscription will handle showing the request status
     }
   };
 
