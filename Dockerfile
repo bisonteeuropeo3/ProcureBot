@@ -22,4 +22,4 @@ COPY . .
 ENV NODE_ENV=production
 
 # Command to run the watcher
-CMD ["npx", "tsx", "services/email-watcher.ts"]
+CMD ["npx", "tsx", "lib/email_request_watcher.ts", "--watch"]

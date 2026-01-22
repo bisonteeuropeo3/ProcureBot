@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "email:once": "npx tsx lib/email_request_watcher.ts",
     "email:watch": "npx tsx lib/email_request_watcher.ts --watch",
-    "sourcing:watch": "npx tsx lib/sourcing_watcher.ts"
+    "sourcing:watch": "npx tsx lib/sourcing_watcher.ts",
+    "api:serve": "npx tsx services/encrypt-credential.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

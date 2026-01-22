@@ -17,6 +17,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 import * as dotenv from 'dotenv';
 import { searchGoogleShopping } from './serper';
+import { decrypt, isEncrypted } from './crypto';
 
 // Load environment variables
 dotenv.config({ path: '.env.local' });
@@ -136,13 +137,28 @@ async function markIntegrationError(integrationId: string, errorMessage: string)
  * Connect to IMAP and fetch emails since a given date
  */
 async function fetchEmailsSince(integration: EmailIntegration, sinceDate: Date): Promise<EmailData[]> {
+    // Decrypt password if it's encrypted, otherwise use as-is (for migration)
+    let password: string;
+    try {
+        if (isEncrypted(integration.imap_pass_encrypted)) {
+            password = decrypt(integration.imap_pass_encrypted);
+        } else {
+            // Fallback for plaintext passwords (pre-encryption migration)
+            console.warn('⚠️ Password appears to be in plaintext. Consider re-saving the integration.');
+            password = integration.imap_pass_encrypted;
+        }
+    } catch (err: any) {
+        console.error('Failed to decrypt password:', err.message);
+        throw new Error('Password decryption failed');
+    }
+
     const client = new ImapFlow({
         host: integration.imap_host,
         port: integration.imap_port,
         secure: true,
         auth: {
             user: integration.imap_user,
-            pass: integration.imap_pass_encrypted // Password is already decrypted
+            pass: password
         },
         logger: false
     });

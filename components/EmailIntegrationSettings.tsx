@@ -73,19 +73,29 @@ export const EmailIntegrationSettings: React.FC = () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("Not authenticated");
 
-            // In a real app, encrypt this or send to secure endpoint
-            // For this design, we insert directly (assuming RLS is set)
-            const { error } = await supabase.from('email_integrations').insert({
-                user_id: user.id,
-                provider,
-                imap_host: host,
-                imap_port: port,
-                imap_user: email,
-                imap_pass_encrypted: password, // TODO: Add client-side encryption or use Edge Function
-                status: 'active'
+            // Call the encryption API server (keeps encryption key server-side)
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+            const response = await fetch(`${API_URL}/api/email-integration`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: user.id,
+                    email,
+                    password,
+                    host,
+                    port,
+                    provider
+                })
             });
 
-            if (error) throw error;
+            const result = await response.json();
+
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to save integration');
+            }
 
             setShowForm(false);
             setEmail('');
