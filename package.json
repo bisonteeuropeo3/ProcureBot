@@ -6,13 +6,21 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "email:once": "npx tsx lib/email_request_watcher.ts",
+    "email:watch": "npx tsx lib/email_request_watcher.ts --watch",
+    "sourcing:watch": "npx tsx lib/sourcing_watcher.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
-    "@supabase/supabase-js": "^2.89.0",
+    "@supabase/supabase-js": "^2.90.1",
+    "@types/lodash": "^4.17.23",
     "dotenv": "^17.2.3",
+    "imap-simple": "^5.1.0",
+    "imapflow": "^1.2.6",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.562.0",
+    "mailparser": "^3.9.1",
     "openai": "^6.16.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
@@ -20,6 +28,8 @@
     "tsx": "^4.21.0"
   },
   "devDependencies": {
+    "@types/imap-simple": "^4.2.10",
+    "@types/mailparser": "^3.4.6",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "terser": "^5.31.0",

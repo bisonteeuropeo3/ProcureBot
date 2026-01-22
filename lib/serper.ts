@@ -1,3 +1,6 @@
+// Note: In Node.js context (email watcher), dotenv should be loaded by the caller
+// In browser context (Vite), env vars are available via import.meta.env
+
 export interface SerperShoppingResult {
   title: string;
   source: string;
@@ -16,10 +19,17 @@ export interface SerperResponse {
 }
 
 export async function searchGoogleShopping(query: string): Promise<SerperShoppingResult[]> {
-  const apiKey = (import.meta as any).env?.VITE_SERPER_API_KEY;
+  // Support both Node.js (process.env) and Vite (import.meta.env) environments
+  let apiKey = process.env.VITE_SERPER_API_KEY || process.env.SERPER_API_KEY || (import.meta as any).env?.VITE_SERPER_API_KEY;
+
+  // Strip quotes if present (from .env.local file)
+  if (apiKey) {
+    apiKey = apiKey.replace(/^["']|["']$/g, '');
+  }
 
   console.log(`[Serper] Searching for "${query}"`);
   console.log(`[Serper] API Key present: ${!!apiKey}`);
+  console.log(`[Serper] API Key (first 10 chars): ${apiKey?.substring(0, 10)}...`);
 
   if (!apiKey) {
     console.error("[Serper] Missing VITE_SERPER_API_KEY");
@@ -47,13 +57,13 @@ export async function searchGoogleShopping(query: string): Promise<SerperShoppin
   try {
     const response = await fetch("https://google.serper.dev/shopping", requestOptions);
     console.log(`[Serper] Response status: ${response.status}`);
-    
+
     if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[Serper] API Error: ${response.status} - ${errorText}`);
-        throw new Error(`Serper API failed: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error(`[Serper] API Error: ${response.status} - ${errorText}`);
+      throw new Error(`Serper API failed: ${response.status} ${response.statusText}`);
     }
-    
+
     const result = await response.json() as SerperResponse;
     console.log(`[Serper] Found ${result.shopping?.length || 0} results`);
     return result.shopping || [];

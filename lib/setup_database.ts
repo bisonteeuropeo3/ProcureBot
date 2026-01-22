@@ -10,6 +10,7 @@ export const SETUP_SQL = `
 CREATE TABLE IF NOT EXISTS public.requests (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- Linked to Supabase Auth User
     product_name TEXT NOT NULL,
     quantity INTEGER DEFAULT 1 NOT NULL,
     target_price NUMERIC NOT NULL,
@@ -20,8 +21,9 @@ CREATE TABLE IF NOT EXISTS public.requests (
     category TEXT -- New column for AI categorization (IT, Stationery, etc.)
 );
 
--- MIGRATION: If table exists, run this to add the column:
+-- MIGRATION: If table exists, run these to add new columns:
 -- ALTER TABLE public.requests ADD COLUMN IF NOT EXISTS category TEXT;
+-- ALTER TABLE public.requests ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
 
 -- 2. Create the sourcing_options table (One-to-Many)
 CREATE TABLE IF NOT EXISTS public.sourcing_options (
@@ -116,4 +118,47 @@ CREATE POLICY "Enable all access for receipt_items" ON public.receipt_items FOR 
 -- 10. Realtime for new tables
 alter publication supabase_realtime add table public.receipts;
 alter publication supabase_realtime add table public.receipt_items;
+`;
+
+/**
+ * EMAIL INTEGRATION SETUP SQL
+ * 
+ * Run this in your Supabase SQL Editor to add the email integration features.
+ */
+
+export const EMAIL_INTEGRATION_SQL = `
+-- 1. Create email_integrations table
+CREATE TABLE IF NOT EXISTS public.email_integrations (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE, -- Linked to Supabase Auth User
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    provider TEXT CHECK (provider IN ('gmail', 'outlook', 'other')) DEFAULT 'other',
+    imap_host TEXT NOT NULL,
+    imap_port INTEGER NOT NULL,
+    imap_user TEXT NOT NULL,
+    imap_pass_encrypted TEXT NOT NULL, -- Will store encrypted password
+    status TEXT CHECK (status IN ('active', 'error', 'disconnected')) DEFAULT 'active',
+    last_synced_at TIMESTAMP WITH TIME ZONE,
+    last_error TEXT
+);
+
+-- 2. Enable RLS
+ALTER TABLE public.email_integrations ENABLE ROW LEVEL SECURITY;
+
+-- 3. RLS Policies
+-- Users can only see/edit their own integrations
+CREATE POLICY "Users can view own integrations" ON public.email_integrations
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own integrations" ON public.email_integrations
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own integrations" ON public.email_integrations
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own integrations" ON public.email_integrations
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- 4. Realtime
+alter publication supabase_realtime add table public.email_integrations;
 `;
