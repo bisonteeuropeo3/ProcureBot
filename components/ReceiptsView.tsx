@@ -19,6 +19,7 @@ interface ReceiptItem {
   description: string;
   quantity: number;
   price: number;
+  category?: string;
 }
 
 interface ReceiptWithItems extends Receipt {
@@ -151,11 +152,12 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
       if (error) throw error;
 
       // Build CSV content
-      const headers = ['Merchant', 'Date', 'Item Description', 'Quantity', 'Unit Price', 'Total', 'Currency'];
+      const headers = ['Merchant', 'Date', 'Item Description', 'Category', 'Quantity', 'Unit Price', 'Total', 'Currency'];
       const rows = (allItems || []).map((item: any) => [
         item.receipts?.merchant_name || '',
         item.receipts?.receipt_date || '',
         item.description || '',
+        item.category || 'Altro',
         item.quantity || 1,
         (item.price || 0).toFixed(2),
         ((item.price || 0) * (item.quantity || 1)).toFixed(2),
@@ -395,13 +397,18 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
                         <div className="space-y-3">
                             {receiptItems.map((item) => (
                                 <div key={item.id} className="flex justify-between items-center p-3 bg-white border border-gray-200">
-                                    <div className="flex items-center gap-3">
-                                        <span className="w-6 h-6 flex items-center justify-center bg-forest text-lime text-xs font-bold rounded-full">
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <span className="w-6 h-6 flex items-center justify-center bg-forest text-lime text-xs font-bold rounded-full shrink-0">
                                             {item.quantity}
                                         </span>
-                                        <span className="font-medium text-charcoal">{item.description}</span>
+                                        <div className="min-w-0">
+                                            <span className="font-medium text-charcoal block truncate">{item.description}</span>
+                                            {item.category && (
+                                                <span className="text-[10px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{item.category}</span>
+                                            )}
+                                        </div>
                                     </div>
-                                    <span className="font-mono font-bold text-gray-600">
+                                    <span className="font-mono font-bold text-gray-600 shrink-0 ml-2">
                                         {((item.price || 0) * (item.quantity || 1)).toFixed(2)}
                                     </span>
                                 </div>

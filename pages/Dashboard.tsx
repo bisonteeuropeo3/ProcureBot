@@ -398,6 +398,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
         description: item.description,
         price: item.price,
         quantity: item.quantity,
+        category: item.category || 'Altro',
       }));
 
       const { error: itemsError } = await supabase
