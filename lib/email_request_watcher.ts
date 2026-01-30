@@ -42,8 +42,8 @@ if (!OPENAI_API_KEY) {
 const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-// Polling interval in milliseconds (default: 5 minutes)
-const DEFAULT_POLL_INTERVAL = 5 * 60 * 1000;
+// Polling interval in milliseconds (default: 30 seconds)
+const DEFAULT_POLL_INTERVAL = 30 * 1000;
 
 // Types
 interface EmailIntegration {
