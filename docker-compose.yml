@@ -1,0 +1,27 @@
+services:
+  # Email Watcher Service
+  # Runs continuously to check for new emails
+  watcher:
+    build: .
+    container_name: procurebot-watcher
+    command: npm run email:watch
+    restart: always
+    env_file:
+      - .env.local
+    volumes:
+      # Mount .env.local so you can update secrets without rebuilding
+      - ./.env.local:/app/.env.local
+
+  # Encryption API Server
+  # Handles password encryption for integrations
+  api:
+    build: .
+    container_name: procurebot-api
+    command: npm run api:serve
+    restart: always
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env.local
+    volumes:
+      - ./.env.local:/app/.env.local
