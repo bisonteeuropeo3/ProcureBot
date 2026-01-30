@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { FileText, Calendar, DollarSign, Store, ChevronRight, ShoppingBag, X, Download } from 'lucide-react';
+import { FileText, Calendar, Store, ChevronRight, ShoppingBag, X, Download, Search } from 'lucide-react';
 
 interface Receipt {
   id: string;
@@ -21,38 +21,81 @@ interface ReceiptItem {
   price: number;
 }
 
+interface ReceiptWithItems extends Receipt {
+  items?: ReceiptItem[];
+}
+
 interface ReceiptsViewProps {
   userId: string;
 }
 
 const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [receipts, setReceipts] = useState<ReceiptWithItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [receiptItems, setReceiptItems] = useState<ReceiptItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  
+  // Search and filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportDateFrom, setExportDateFrom] = useState('');
+  const [exportDateTo, setExportDateTo] = useState('');
 
   useEffect(() => {
     fetchReceipts();
-  }, [userId]); // Add userId dependency
+  }, [userId]);
 
   const fetchReceipts = async () => {
     try {
+      // Fetch receipts with their items for search
       const { data, error } = await supabase
         .from('receipts')
-        .select('*')
-        .eq('user_id', userId) // Filter by user_id
-        .eq('status', 'completed') // Only show completed/accepted receipts
+        .select('*, receipt_items(*)')
+        .eq('user_id', userId)
+        .eq('status', 'completed')
         .order('receipt_date', { ascending: false });
 
       if (error) throw error;
-      setReceipts(data || []);
+      
+      // Map items to receipts
+      const receiptsWithItems = (data || []).map((r: any) => ({
+        ...r,
+        items: r.receipt_items || []
+      }));
+      
+      setReceipts(receiptsWithItems);
     } catch (error) {
       console.error('Error fetching receipts:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Filter receipts by search term and date range
+  const filteredReceipts = useMemo(() => {
+    return receipts.filter(receipt => {
+      // Date filter
+      if (dateFrom && receipt.receipt_date < dateFrom) return false;
+      if (dateTo && receipt.receipt_date > dateTo) return false;
+      
+      // Search filter - check merchant name AND item descriptions
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesMerchant = receipt.merchant_name?.toLowerCase().includes(searchLower);
+        const matchesItems = receipt.items?.some(item => 
+          item.description?.toLowerCase().includes(searchLower)
+        );
+        if (!matchesMerchant && !matchesItems) return false;
+      }
+      
+      return true;
+    });
+  }, [receipts, searchTerm, dateFrom, dateTo]);
 
   const handleReceiptClick = async (receipt: Receipt) => {
     setSelectedReceipt(receipt);
@@ -77,13 +120,26 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
     setReceiptItems([]);
   };
 
+  const openExportModal = () => {
+    // Default to current filter dates
+    setExportDateFrom(dateFrom);
+    setExportDateTo(dateTo);
+    setShowExportModal(true);
+  };
+
   const exportToCSV = async () => {
     try {
-      // Fetch all receipt items for this user's receipts
-      const receiptIds = receipts.map(r => r.id);
+      // Filter receipts by export date range
+      const receiptsToExport = receipts.filter(r => {
+        if (exportDateFrom && r.receipt_date < exportDateFrom) return false;
+        if (exportDateTo && r.receipt_date > exportDateTo) return false;
+        return true;
+      });
+      
+      const receiptIds = receiptsToExport.map(r => r.id);
       
       if (receiptIds.length === 0) {
-        alert('No receipts to export.');
+        alert('No receipts to export in this date range.');
         return;
       }
 
@@ -116,9 +172,13 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `receipts_export_${new Date().toISOString().split('T')[0]}.csv`;
+      const dateRangeStr = exportDateFrom || exportDateTo 
+        ? `_${exportDateFrom || 'start'}_to_${exportDateTo || 'end'}`
+        : '';
+      link.download = `receipts_export${dateRangeStr}_${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
       URL.revokeObjectURL(url);
+      setShowExportModal(false);
     } catch (error) {
       console.error('Error exporting CSV:', error);
       alert('Failed to export CSV. Please try again.');
@@ -135,13 +195,13 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
          <div>
             <h1 className="text-3xl md:text-4xl font-display font-bold text-charcoal">Receipts</h1>
-         <p className="text-gray-500 mt-1">Archive of analyzed and accepted receipts.</p>
+            <p className="text-gray-500 mt-1">Archive of analyzed and accepted receipts.</p>
          </div>
          <button
-           onClick={exportToCSV}
+           onClick={openExportModal}
            disabled={receipts.length === 0}
            className="flex items-center gap-2 px-4 py-2 bg-forest text-lime font-bold border-2 border-charcoal hover:bg-charcoal hover:text-lime transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
          >
@@ -150,17 +210,47 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
          </button>
       </div>
 
+      {/* Search and Filter Bar */}
+      <div className="flex flex-col md:flex-row gap-4 bg-white p-4 border-2 border-charcoal shadow-[4px_4px_0px_#D4E768]">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input 
+            type="text" 
+            placeholder="Search by merchant or item..." 
+            className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 focus:border-forest focus:outline-none"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-2 items-center">
+          <Calendar className="w-4 h-4 text-gray-400" />
+          <input 
+            type="date" 
+            className="px-3 py-2 border-2 border-gray-200 focus:border-forest focus:outline-none text-sm"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            placeholder="From"
+          />
+          <span className="text-gray-400">to</span>
+          <input 
+            type="date" 
+            className="px-3 py-2 border-2 border-gray-200 focus:border-forest focus:outline-none text-sm"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            placeholder="To"
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {receipts.map((receipt) => (
+        {filteredReceipts.map((receipt) => (
           <div 
             key={receipt.id}
             onClick={() => handleReceiptClick(receipt)}
             className="group bg-white border-2 border-charcoal p-4 cursor-pointer hover:-translate-y-1 hover:shadow-[6px_6px_0px_#D4E768] hover:border-lime transition-all relative overflow-hidden"
           >
              <div className="flex items-start gap-4">
-                {/* Image Placeholder or Actual Image */}
                 <div className="w-16 h-16 bg-gray-100 border-2 border-gray-200 shrink-0 flex items-center justify-center overflow-hidden">
-                    {/* Since we don't have real storage yet, we use a condtiional icon */}
                     {receipt.image_url && receipt.image_url.startsWith('data:') ? (
                          <img src={receipt.image_url} alt="Receipt" className="w-full h-full object-cover" />
                     ) : (
@@ -190,13 +280,63 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
           </div>
         ))}
 
-        {receipts.length === 0 && (
+        {filteredReceipts.length === 0 && (
             <div className="col-span-full py-12 text-center border-2 border-dashed border-gray-300 rounded-lg">
                 <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 font-medium">No receipts archived yet.</p>
+                <p className="text-gray-500 font-medium">
+                  {receipts.length === 0 ? 'No receipts archived yet.' : 'No receipts match your search.'}
+                </p>
             </div>
         )}
       </div>
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setShowExportModal(false)}></div>
+          <div className="relative bg-white border-2 border-charcoal p-6 shadow-[8px_8px_0px_#1A1E1C] max-w-md w-full mx-4 animate-in zoom-in-95 duration-200">
+            <h3 className="font-display font-bold text-xl text-charcoal mb-4">Export Receipts to CSV</h3>
+            <p className="text-sm text-gray-600 mb-4">Select a date range to export. Leave empty to export all.</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-charcoal mb-1">From Date</label>
+                <input 
+                  type="date" 
+                  className="w-full px-3 py-2 border-2 border-gray-200 focus:border-forest focus:outline-none"
+                  value={exportDateFrom}
+                  onChange={(e) => setExportDateFrom(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-charcoal mb-1">To Date</label>
+                <input 
+                  type="date" 
+                  className="w-full px-3 py-2 border-2 border-gray-200 focus:border-forest focus:outline-none"
+                  value={exportDateTo}
+                  onChange={(e) => setExportDateTo(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="flex-1 px-4 py-2 border-2 border-charcoal bg-white hover:bg-gray-100 font-bold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={exportToCSV}
+                className="flex-1 px-4 py-2 bg-forest text-lime font-bold border-2 border-charcoal hover:bg-charcoal transition-colors flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Detail Slide-over / Modal */}
       {selectedReceipt && (
