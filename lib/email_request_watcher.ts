@@ -190,12 +190,17 @@ async function fetchEmailsSince(integration: EmailIntegration, sinceDate: Date):
                 // Only process emails that are actually newer than sinceDate
                 const emailDate = parsed.date || new Date();
                 if (emailDate > sinceDate) {
-                    emails.push({
-                        subject: parsed.subject || '(No Subject)',
-                        from: parsed.from?.text || 'Unknown',
-                        date: emailDate,
-                        body: parsed.text || parsed.html || ''
-                    });
+                    const subject = parsed.subject || '(No Subject)';
+                    
+                    // Filter: Only process emails containing "Acquisto" (case-insensitive)
+                    if (subject.toLowerCase().includes('acquisto')) {
+                        emails.push({
+                            subject: subject,
+                            from: parsed.from?.text || 'Unknown',
+                            date: emailDate,
+                            body: parsed.text || parsed.html || ''
+                        });
+                    }
                 }
             } catch (parseError) {
                 console.error('Error parsing email:', parseError);
