@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { FileText, Calendar, DollarSign, Store, ChevronRight, ShoppingBag, X } from 'lucide-react';
+import { FileText, Calendar, DollarSign, Store, ChevronRight, ShoppingBag, X, Download } from 'lucide-react';
 
 interface Receipt {
   id: string;
@@ -77,6 +77,54 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
     setReceiptItems([]);
   };
 
+  const exportToCSV = async () => {
+    try {
+      // Fetch all receipt items for this user's receipts
+      const receiptIds = receipts.map(r => r.id);
+      
+      if (receiptIds.length === 0) {
+        alert('No receipts to export.');
+        return;
+      }
+
+      const { data: allItems, error } = await supabase
+        .from('receipt_items')
+        .select('*, receipts!inner(merchant_name, receipt_date, currency)')
+        .in('receipt_id', receiptIds);
+
+      if (error) throw error;
+
+      // Build CSV content
+      const headers = ['Merchant', 'Date', 'Item Description', 'Quantity', 'Unit Price', 'Total', 'Currency'];
+      const rows = (allItems || []).map((item: any) => [
+        item.receipts?.merchant_name || '',
+        item.receipts?.receipt_date || '',
+        item.description || '',
+        item.quantity || 1,
+        (item.price || 0).toFixed(2),
+        ((item.price || 0) * (item.quantity || 1)).toFixed(2),
+        item.receipts?.currency || 'EUR'
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      // Download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `receipts_export_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export CSV. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -90,9 +138,16 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
       <div className="flex items-center justify-between">
          <div>
             <h1 className="text-3xl md:text-4xl font-display font-bold text-charcoal">Receipts</h1>
-            <p className="text-gray-500 mt-1">Archive of analyzed and accepted receipts.</p>
+         <p className="text-gray-500 mt-1">Archive of analyzed and accepted receipts.</p>
          </div>
-         {/* Could add a filter or export button here */}
+         <button
+           onClick={exportToCSV}
+           disabled={receipts.length === 0}
+           className="flex items-center gap-2 px-4 py-2 bg-forest text-lime font-bold border-2 border-charcoal hover:bg-charcoal hover:text-lime transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+         >
+           <Download className="w-4 h-4" />
+           Export CSV
+         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
