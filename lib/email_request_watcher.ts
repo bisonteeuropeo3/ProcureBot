@@ -323,8 +323,8 @@ async function insertRequest(
 
         console.log(`  📦 Found ${shoppingResults.length} results`);
 
-        // 3. Transform and save options (top 10)
-        const optionsToInsert = shoppingResults.slice(0, 10).map((item) => ({
+        // 3. Transform and save options (top 40)
+        const optionsToInsert = shoppingResults.slice(0, 40).map((item) => ({
             request_id: requestData.id,
             vendor: item.source,
             product_title: item.title,

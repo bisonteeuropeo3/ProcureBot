@@ -81,7 +81,7 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
 
       // 3. Transform and Save Options
       if (shoppingResults.length > 0) {
-        const optionsToInsert = shoppingResults.slice(0, 10).map((item) => ({
+        const optionsToInsert = shoppingResults.slice(0, 40).map((item) => ({
           request_id: requestId,
           vendor: item.source,
           product_title: item.title,

@@ -80,8 +80,8 @@ async function processRequest(request: RequestRecord): Promise<void> {
 
         console.log(`  ✅ Found ${shoppingResults.length} results`);
 
-        // 2. Transform and save options (top 10)
-        const optionsToInsert = shoppingResults.slice(0, 10).map((item: SerperShoppingResult) => ({
+        // 2. Transform and save options (top 40)
+        const optionsToInsert = shoppingResults.slice(0, 40).map((item: SerperShoppingResult) => ({
             request_id: id,
             vendor: item.source,
             product_title: item.title,
