@@ -56,11 +56,12 @@ const OptionSelectionModal: React.FC<OptionSelectionModalProps> = ({ request, is
         })
         .eq('id', request.id);
 
-      // 3. Delete all sourcing options for this request
+      // 3. Delete all NON-SELECTED sourcing options for this request (keep the selected one for history)
       await supabase
         .from('sourcing_options')
         .delete()
-        .eq('request_id', request.id);
+        .eq('request_id', request.id)
+        .neq('id', option.id);
 
       onSuccess();
       onClose();
