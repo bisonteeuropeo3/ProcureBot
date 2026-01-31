@@ -4,17 +4,29 @@ import { supabase } from '../lib/supabase';
 import { searchGoogleShopping } from '../lib/serper';
 import { RequestStatus } from '../types';
 
+const CATEGORIES = [
+  'IT',
+  'Stationery',
+  'Hardware',
+  'Software',
+  'Office Supplies',
+  'Services',
+  'Other'
+];
+
 interface RequestFormProps {
   isOpen: boolean;
   userId: string;
   onClose: () => void;
   onSubmitSuccess: () => void;
+  onRequestInserted?: () => void; // Callback to refresh data after DB insert
 }
 
-const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSubmitSuccess }) => {
+const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSubmitSuccess, onRequestInserted }) => {
   const [productName, setProductName] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [targetPrice, setTargetPrice] = useState('');
+  const [category, setCategory] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
 
@@ -27,11 +39,13 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
     const capturedProductName = productName;
     const capturedQuantity = quantity;
     const numericTargetPrice = parseFloat(targetPrice);
+    const capturedCategory = category || 'Other';
 
     // Reset form and close immediately
     setProductName('');
     setQuantity(1);
     setTargetPrice('');
+    setCategory('');
     onSubmitSuccess();
     onClose();
 
@@ -45,6 +59,7 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
             product_name: capturedProductName,
             quantity: capturedQuantity,
             target_price: numericTargetPrice,
+            category: capturedCategory,
             source: 'dashboard',
             status: RequestStatus.PENDING,
             user_id: userId
@@ -55,6 +70,9 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
 
       if (requestError) throw requestError;
       if (!requestData) throw new Error('Failed to create request');
+
+      // Immediately refresh the live requests
+      onRequestInserted?.();
 
       const requestId = requestData.id;
 
@@ -163,6 +181,24 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
                 onChange={(e) => setTargetPrice(e.target.value)}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-charcoal mb-2 uppercase tracking-wide">
+              Category
+            </label>
+            <select
+              required
+              className="w-full p-4 bg-white border-2 border-charcoal focus:outline-none focus:ring-2 focus:ring-forest appearance-none cursor-pointer"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="">Select a category...</option>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-2">Helps organize spending reports.</p>
           </div>
 
           <div className="pt-4">

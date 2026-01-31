@@ -679,6 +679,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
           showToast("Request sent to AI Agent...");
           // No explicit refresh here; we wait for n8n to insert to DB, which triggers Realtime update
         }}
+        onRequestInserted={fetchData}
       />
 
       <OptionSelectionModal
