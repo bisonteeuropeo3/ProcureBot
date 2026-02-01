@@ -30,4 +30,4 @@ User-agent: Googlebot
 Allow: /
 
 # Sitemap location
-Sitemap: https://procurebot.it/sitemap.xml
+Sitemap: https://www.procured.online/sitemap.xml
