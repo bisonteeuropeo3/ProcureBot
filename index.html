@@ -192,32 +192,25 @@
       .backdrop-blur-md { backdrop-filter: blur(12px); }
     </style>
 
-    <!-- Tailwind CDN - Load async/defer to not block rendering -->
+    <!-- Tailwind CDN - synchronous for proper styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      // Load Tailwind after initial paint
-      window.addEventListener('load', function() {
-        var script = document.createElement('script');
-        script.src = 'https://cdn.tailwindcss.com';
-        script.onload = function() {
-          tailwind.config = {
-            theme: {
-              extend: {
-                colors: {
-                  forest: "#2D4A3E",
-                  lime: "#D4E768",
-                  cream: "#F3F1EA",
-                  charcoal: "#1A1E1C",
-                },
-                fontFamily: {
-                  sans: ["Inter", "sans-serif"],
-                  display: ["Syne", "sans-serif"],
-                },
-              },
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              forest: "#2D4A3E",
+              lime: "#D4E768",
+              cream: "#F3F1EA",
+              charcoal: "#1A1E1C",
             },
-          };
-        };
-        document.head.appendChild(script);
-      });
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              display: ["Syne", "sans-serif"],
+            },
+          },
+        },
+      };
     </script>
   </head>
 
