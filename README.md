@@ -125,16 +125,6 @@ This is the most cost-effective and flexible option (approx $5-6/mo).
     docker compose up -d
     ```
 
-### Option 2: Platform as a Service (PaaS)
-
-Easier to set up (no server management), but can be more expensive for "always-on" background workers.
-**Providers**: [Railway](https://railway.app/), [Render](https://render.com/)
-
-- **Railway**: Connect your GitHub repo. It detects the `Dockerfile`. You may need to configure two separate services (one for Watcher, one for API) or use a custom start command.
-- **Render**: Create a "Background Worker" for the email watcher and a "Web Service" for the API.
-
----
-
 ### Running with Docker Compose (Local or VPS)
 
 We have included a `docker-compose.yml` file to make running everything easy:
