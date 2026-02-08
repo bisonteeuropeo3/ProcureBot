@@ -91,7 +91,25 @@ export const EmailIntegrationSettings: React.FC = () => {
                 })
             });
 
-            const result = await response.json();
+            // Better error handling for debugging
+            const responseText = await response.text();
+            console.log('API Response Status:', response.status);
+            console.log('API Response Body:', responseText);
+
+            if (!response.ok) {
+                throw new Error(`Server error (${response.status}): ${responseText || 'No response body'}`);
+            }
+
+            if (!responseText) {
+                throw new Error('Empty response from API server. Check if the encryption API is running.');
+            }
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}`);
+            }
 
             if (!result.success) {
                 throw new Error(result.error || 'Failed to save integration');
