@@ -73,10 +73,10 @@ export const EmailIntegrationSettings: React.FC = () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("Not authenticated");
 
-            // Call the encryption API server (keeps encryption key server-side)
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+            // Use Vercel API route (proxies to AWS) to avoid HTTPS/HTTP mixed content issues
+            const API_URL = '/api/email-integration';
 
-            const response = await fetch(`${API_URL}/api/email-integration`, {
+            const response = await fetch(`/api/email-integration`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
