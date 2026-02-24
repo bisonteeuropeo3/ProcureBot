@@ -46,6 +46,7 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportDateFrom, setExportDateFrom] = useState('');
   const [exportDateTo, setExportDateTo] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchReceipts();
@@ -70,8 +71,9 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
       }));
       
       setReceipts(receiptsWithItems);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching receipts:', error);
+      setError('Impossibile caricare gli scontrini. Riprova.');
     } finally {
       setLoading(false);
     }
@@ -109,8 +111,9 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
 
       if (error) throw error;
       setReceiptItems(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching receipt items:', error);
+      setError('Impossibile caricare i dettagli dello scontrino.');
     } finally {
       setLoadingItems(false);
     }
@@ -211,6 +214,13 @@ const ReceiptsView: React.FC<ReceiptsViewProps> = ({ userId }) => {
            Export CSV
          </button>
       </div>
+
+      {error && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 font-medium text-sm flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-700 hover:text-red-900 font-bold ml-4">✕</button>
+        </div>
+      )}
 
       {/* Search and Filter Bar */}
       <div className="flex flex-col md:flex-row gap-4 bg-white p-4 border-2 border-charcoal shadow-[4px_4px_0px_#D4E768]">

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Bot, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { searchGoogleShopping } from '../lib/serper';
-import { RequestStatus } from '../types';
+import { RequestStatus, TeamMember } from '../types';
 
 const CATEGORIES = [
   'IT',
@@ -29,6 +29,31 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
   const [category, setCategory] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [assignedTo, setAssignedTo] = useState<string>('');
+
+  // Fetch team members for the dropdown
+  React.useEffect(() => {
+    if (isOpen) {
+      const fetchMembers = async () => {
+        const { data, error } = await supabase
+          .from('team_members')
+          .select('*')
+          .eq('user_id', userId)
+          .order('name');
+        
+        if (!error && data) {
+          setMembers(data as TeamMember[]);
+        }
+      };
+      
+      fetchMembers();
+      
+      // Reset assignment when form opens
+      setAssignedTo('');
+    }
+  }, [isOpen, userId]);
 
   if (!isOpen) return null;
 
@@ -40,6 +65,17 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
     const capturedQuantity = quantity;
     const numericTargetPrice = parseFloat(targetPrice);
     const capturedCategory = category || 'Other';
+    const capturedAssignedTo = assignedTo || null;
+
+    if (isNaN(numericTargetPrice) || numericTargetPrice <= 0) {
+      alert('Il prezzo obiettivo non è valido. Inserisci un numero positivo.');
+      return;
+    }
+
+    if (capturedQuantity < 1 || isNaN(capturedQuantity)) {
+      alert('La quantità deve essere almeno 1.');
+      return;
+    }
 
     // Reset form and close immediately
     setProductName('');
@@ -62,7 +98,8 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
             category: capturedCategory,
             source: 'dashboard',
             status: RequestStatus.PENDING,
-            user_id: userId
+            user_id: userId,
+            assigned_to: capturedAssignedTo
           }
         ])
         .select()
@@ -199,6 +236,23 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
               ))}
             </select>
             <p className="text-xs text-gray-500 mt-2">Helps organize spending reports.</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-charcoal mb-2 uppercase tracking-wide">
+              Assign To (Optional)
+            </label>
+            <select
+              className="w-full p-4 bg-white border-2 border-charcoal focus:outline-none focus:ring-2 focus:ring-forest appearance-none cursor-pointer"
+              value={assignedTo}
+              onChange={(e) => setAssignedTo(e.target.value)}
+            >
+              <option value="">No assignment</option>
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>{member.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-2">Link this request to a team member's budget.</p>
           </div>
 
           <div className="pt-4">

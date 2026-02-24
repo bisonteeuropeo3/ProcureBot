@@ -14,40 +14,51 @@ const OptionSelectionModal: React.FC<OptionSelectionModalProps> = ({ request, is
   const [options, setOptions] = useState<SourcingOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && request) {
+      setErrorMsg(null);
       fetchOptions(request.id);
     }
   }, [isOpen, request]);
 
   const fetchOptions = async (requestId: string) => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('sourcing_options')
-      .select('*')
-      .eq('request_id', requestId)
-      .order('price', { ascending: true }); // Cheapest first
+    setErrorMsg(null);
+    try {
+      const { data, error } = await supabase
+        .from('sourcing_options')
+        .select('*')
+        .eq('request_id', requestId)
+        .order('price', { ascending: true }); // Cheapest first
 
-    if (!error && data) {
+      if (error) throw error;
       setOptions(data as SourcingOption[]);
+    } catch (err: any) {
+      console.error('Error fetching sourcing options:', err);
+      setErrorMsg('Impossibile caricare le opzioni. Riprova.');
+      setOptions([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSelectOption = async (option: SourcingOption) => {
     if (!request) return;
     setProcessingId(option.id);
+    setErrorMsg(null);
 
     try {
       // 1. Mark option as selected
-      await supabase
+      const { error: selectErr } = await supabase
         .from('sourcing_options')
         .update({ is_selected: true })
         .eq('id', option.id);
+      if (selectErr) throw selectErr;
 
       // 2. Update Request with final details and approve
-      await supabase
+      const { error: updateErr } = await supabase
         .from('requests')
         .update({
           status: 'approved',
@@ -55,19 +66,21 @@ const OptionSelectionModal: React.FC<OptionSelectionModalProps> = ({ request, is
           link: option.url
         })
         .eq('id', request.id);
+      if (updateErr) throw updateErr;
 
-      // 3. Delete all NON-SELECTED sourcing options for this request (keep the selected one for history)
-      await supabase
+      // 3. Delete all NON-SELECTED sourcing options for this request
+      const { error: deleteErr } = await supabase
         .from('sourcing_options')
         .delete()
         .eq('request_id', request.id)
         .neq('id', option.id);
+      if (deleteErr) console.warn('Failed to clean up sourcing options:', deleteErr);
 
       onSuccess();
       onClose();
-    } catch (e) {
-      console.error("Error selecting option", e);
-      alert("Failed to process selection.");
+    } catch (e: any) {
+      console.error('Error selecting option:', e);
+      setErrorMsg(`Errore: ${e.message || 'Operazione fallita. Riprova.'}`);
     } finally {
       setProcessingId(null);
     }
@@ -76,10 +89,11 @@ const OptionSelectionModal: React.FC<OptionSelectionModalProps> = ({ request, is
   const handleApproveWithoutSuggestions = async () => {
     if (!request) return;
     setProcessingId('manual');
+    setErrorMsg(null);
 
     try {
       // Approve at target price without any sourcing option
-      await supabase
+      const { error: approveErr } = await supabase
         .from('requests')
         .update({
           status: 'approved',
@@ -87,18 +101,20 @@ const OptionSelectionModal: React.FC<OptionSelectionModalProps> = ({ request, is
           link: null
         })
         .eq('id', request.id);
+      if (approveErr) throw approveErr;
 
       // Delete all sourcing options for this request
-      await supabase
+      const { error: deleteErr } = await supabase
         .from('sourcing_options')
         .delete()
         .eq('request_id', request.id);
+      if (deleteErr) console.warn('Failed to clean up sourcing options:', deleteErr);
 
       onSuccess();
       onClose();
-    } catch (e) {
-      console.error("Error approving without suggestions", e);
-      alert("Failed to approve request.");
+    } catch (e: any) {
+      console.error('Error approving without suggestions:', e);
+      setErrorMsg(`Errore: ${e.message || 'Approvazione fallita. Riprova.'}`);
     } finally {
       setProcessingId(null);
     }
@@ -123,6 +139,11 @@ const OptionSelectionModal: React.FC<OptionSelectionModalProps> = ({ request, is
 
         {/* Content */}
         <div className="p-6 overflow-y-auto flex-1">
+          {errorMsg && (
+            <div className="mb-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 font-medium text-sm">
+              {errorMsg}
+            </div>
+          )}
           
           <div className="flex items-center gap-4 mb-8 p-4 bg-white border border-charcoal">
             <div className="text-sm">
