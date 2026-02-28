@@ -10,6 +10,8 @@ import {
   X,
   AlertCircle,
   Receipt as ReceiptIcon,
+  Users,
+  BarChart2,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import {
@@ -29,13 +31,15 @@ import DashboardCharts from "../components/DashboardCharts";
 import ReceiptUploadModal from "../components/ReceiptUploadModal";
 import ReceiptReviewModal from "../components/ReceiptReviewModal";
 import PendingReceiptsList from "../components/PendingReceiptsList";
+import TeamMembersView from "../components/TeamMembersView";
+import StatisticsView from "../components/StatisticsView";
 import {
   analyzeReceipt,
   ReceiptData,
   ReceiptItem,
 } from "../lib/receipt_analyzer";
 
-type ViewPage = "dashboard" | "history" | "settings" | "receipts";
+type ViewPage = "dashboard" | "history" | "settings" | "receipts" | "people" | "statistics";
 
 import { Session } from "@supabase/supabase-js";
 
@@ -157,39 +161,41 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
 
   const fetchData = async () => {
     try {
-      // Fetch Requests
-      const { data: reqData, error: reqError } = await supabase
-        .from("requests")
-        .select("*")
-        .eq('user_id', session.user.id)
-        .order("created_at", { ascending: false });
+      // Use Promise.allSettled so one failure doesn't block the others
+      const [reqResult, pendingResult, completedResult] = await Promise.allSettled([
+        supabase.from("requests").select("*").eq('user_id', session.user.id).order("created_at", { ascending: false }),
+        supabase.from("receipts").select("*").eq('user_id', session.user.id).or("status.eq.processing,status.eq.analyzed").order("created_at", { ascending: false }),
+        supabase.from("receipts").select("*").eq('user_id', session.user.id).eq("status", "completed").order("created_at", { ascending: false }),
+      ]);
 
-      if (reqError) throw reqError;
-      setRequests(reqData as ProcurementRequest[]);
+      // Process Requests
+      if (reqResult.status === 'fulfilled') {
+        const { data, error } = reqResult.value;
+        if (error) console.error('Error fetching requests:', error);
+        else setRequests(data as ProcurementRequest[]);
+      } else {
+        console.error('Requests query rejected:', reqResult.reason);
+      }
 
-      // Fetch Pending Receipts
-      const { data: recData, error: recError } = await supabase
-        .from("receipts")
-        .select("*")
-        .eq('user_id', session.user.id)
-        .or("status.eq.processing,status.eq.analyzed")
-        .order("created_at", { ascending: false });
+      // Process Pending Receipts
+      if (pendingResult.status === 'fulfilled') {
+        const { data, error } = pendingResult.value;
+        if (error) console.error('Error fetching pending receipts:', error);
+        else setPendingReceipts(data as Receipt[]);
+      } else {
+        console.error('Pending receipts query rejected:', pendingResult.reason);
+      }
 
-      if (recError) throw recError;
-      setPendingReceipts(recData as Receipt[]);
-
-      // Fetch Completed Receipts (For Stats/Charts)
-      const { data: compRecData, error: compRecError } = await supabase
-        .from("receipts")
-        .select("*")
-        .eq('user_id', session.user.id)
-        .eq("status", "completed")
-        .order("created_at", { ascending: false });
-
-      if (compRecError) throw compRecError;
-      setCompletedReceipts(compRecData as Receipt[]);
+      // Process Completed Receipts
+      if (completedResult.status === 'fulfilled') {
+        const { data, error } = completedResult.value;
+        if (error) console.error('Error fetching completed receipts:', error);
+        else setCompletedReceipts(data as Receipt[]);
+      } else {
+        console.error('Completed receipts query rejected:', completedResult.reason);
+      }
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error('Unexpected error in fetchData:', error);
     } finally {
       setLoading(false);
     }
@@ -243,10 +249,11 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
       if (error) throw error;
 
       // Delete all sourcing options for this request
-      await supabase
+      const { error: deleteErr } = await supabase
         .from("sourcing_options")
         .delete()
         .eq("request_id", id);
+      if (deleteErr) console.warn('Failed to clean up sourcing options:', deleteErr);
 
       showToast("Request rejected.");
       setRequests((prev) =>
@@ -322,7 +329,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
       analyzeReceipt(file)
         .then(async (data) => {
           // 4. Update Receipt with AI Data
-          await supabase
+          const { error: analysisUpdateErr } = await supabase
             .from("receipts")
             .update({
               merchant_name: data.merchantName,
@@ -334,19 +341,28 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
             })
             .eq("id", receiptCallback.id);
 
-          showToast(
-            `Analysis complete: ${data.merchantName || "Unknown Merchant"}`
-          );
+          if (analysisUpdateErr) {
+            console.error('Failed to save analysis results:', analysisUpdateErr);
+            showToast('Analysis succeeded but failed to save results.');
+          } else {
+            showToast(
+              `Analysis complete: ${data.merchantName || "Unknown Merchant"}`
+            );
+          }
           fetchData();
         })
-        .catch((err) => {
+        .catch(async (err) => {
           console.error("Async analysis failed:", err);
-          showToast("Analysis failed for receipt.");
-          supabase
+          const errorMessage = err?.message?.includes('API Key')
+            ? 'Chiave OpenAI mancante. Configura VITE_OPENAI_API_KEY.'
+            : 'Analisi scontrino fallita. Riprova.';
+          showToast(errorMessage);
+          const { error: failErr } = await supabase
             .from("receipts")
             .update({ status: "failed" })
-            .eq("id", receiptCallback.id)
-            .then(fetchData);
+            .eq("id", receiptCallback.id);
+          if (failErr) console.error('Failed to mark receipt as failed:', failErr);
+          fetchData();
         });
     } catch (error: any) {
       console.error("Receipt upload init failed:", error);
@@ -398,6 +414,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
         description: item.description,
         price: item.price,
         quantity: item.quantity,
+        category: item.category || 'Altro',
       }));
 
       const { error: itemsError } = await supabase
@@ -486,6 +503,34 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
             >
               <ReceiptIcon className="w-5 h-5" />
               Receipts
+            </button>
+            <button
+              onClick={() => {
+                setActivePage("people");
+                setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${
+                activePage === "people"
+                  ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
+                  : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <Users className="w-5 h-5" />
+              Persone
+            </button>
+            <button
+              onClick={() => {
+                setActivePage("statistics");
+                setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${
+                activePage === "statistics"
+                  ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
+                  : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <BarChart2 className="w-5 h-5" />
+              Statistiche
             </button>
             <button
               onClick={() => {
@@ -664,6 +709,10 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
           )}
 
           {!loading && activePage === "receipts" && <ReceiptsView userId={session.user.id} />}
+          
+          {!loading && activePage === "people" && <TeamMembersView userId={session.user.id} />}
+          
+          {!loading && activePage === "statistics" && <StatisticsView userId={session.user.id} />}
 
           {!loading && activePage === "settings" && <SettingsView />}
         </div>
@@ -678,6 +727,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
           showToast("Request sent to AI Agent...");
           // No explicit refresh here; we wait for n8n to insert to DB, which triggers Realtime update
         }}
+        onRequestInserted={fetchData}
       />
 
       <OptionSelectionModal

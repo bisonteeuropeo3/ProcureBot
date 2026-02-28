@@ -5,6 +5,7 @@ export interface ReceiptItem {
   quantity: number;
   price: number;
   totalPrice: number;
+  category: string;
 }
 
 export interface ReceiptData {
@@ -90,12 +91,6 @@ export async function analyzeReceipt(file: File): Promise<ReceiptData> {
   try {
     // 1. Process Image
     const base64ImageWithHeader = await processImage(file);
-    // Remove header for OpenAI API
-    // format: "data:image/jpeg;base64,..."
-    // OpenAI expects just base64 or data URL?
-    // OpenAI API supports data URL for image_url type "image_url".
-    // "Either a URL of the image or the base64 encoded image data."
-    // If passing base64, we can keep the header if we rely on "detail: auto".
 
     // 2. Call OpenAI
     const prompt = `Sei un sistema OCR estremamente preciso specializzato nell'analisi di scontrini fiscali italiani. 
@@ -106,8 +101,17 @@ Regole:
 2. Converti la data in formato ISO (YYYY-MM-DD).
 3. Se un campo non è leggibile o presente, imposta il valore a null.
 4. Categorizza lo scontrino basandoti sugli articoli o sul nome del negozio.
-5. Restituisci SOLO l'oggetto JSON, senza markdown o testo aggiuntivo.
-6. Se ci sono articoli identici segnati più volte in caso di manzcanza della colonna quantità, considera solo la quantità totale.
+5. PER OGNI ARTICOLO, assegna una categoria tra le seguenti:
+   - "Alimentari" (cibo, bevande, prodotti supermercato)
+   - "Ufficio" (cancelleria, materiale ufficio)
+   - "Tecnologia" (elettronica, accessori tech)
+   - "Casa" (prodotti per la casa, pulizia)
+   - "Abbigliamento" (vestiti, scarpe, accessori moda)
+   - "Trasporti" (carburante, biglietti, pedaggi)
+   - "Servizi" (abbonamenti, manutenzione)
+   - "Altro" (tutto ciò che non rientra nelle altre categorie)
+6. Restituisci SOLO l'oggetto JSON, senza markdown o testo aggiuntivo.
+7. Se ci sono articoli identici segnati più volte in caso di mancanza della colonna quantità, considera solo la quantità totale.
 
 Schema JSON richiesto:
 {
@@ -120,7 +124,7 @@ Schema JSON richiesto:
   "valuta": "EUR",
   "categoria": "string",
   "elementi": [
-    { "descrizione": "string", "quantita": number, "prezzo_unitario": number, "prezzo_totale": number }
+    { "descrizione": "string", "quantita": number, "prezzo_unitario": number, "prezzo_totale": number, "categoria": "string" }
   ]
 }`;
 
@@ -166,7 +170,8 @@ Schema JSON richiesto:
             description: item.descrizione || "Item",
             quantity: typeof item.quantita === 'number' ? item.quantita : 1,
             price: typeof item.prezzo_unitario === 'number' ? item.prezzo_unitario : 0,
-            totalPrice: typeof item.prezzo_totale === 'number' ? item.prezzo_totale : 0
+            totalPrice: typeof item.prezzo_totale === 'number' ? item.prezzo_totale : 0,
+            category: item.categoria || "Altro"
           }))
         : []
     };

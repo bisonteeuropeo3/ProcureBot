@@ -42,8 +42,8 @@ if (!OPENAI_API_KEY) {
 const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-// Polling interval in milliseconds (default: 5 minutes)
-const DEFAULT_POLL_INTERVAL = 5 * 60 * 1000;
+// Polling interval in milliseconds (default: 30 seconds)
+const DEFAULT_POLL_INTERVAL = 30 * 1000;
 
 // Types
 interface EmailIntegration {
@@ -190,12 +190,20 @@ async function fetchEmailsSince(integration: EmailIntegration, sinceDate: Date):
                 // Only process emails that are actually newer than sinceDate
                 const emailDate = parsed.date || new Date();
                 if (emailDate > sinceDate) {
-                    emails.push({
-                        subject: parsed.subject || '(No Subject)',
-                        from: parsed.from?.text || 'Unknown',
-                        date: emailDate,
-                        body: parsed.text || parsed.html || ''
-                    });
+                    const subject = parsed.subject || '(No Subject)';
+                    
+                    // Filter: Only process emails containing "Acquisto" (case-insensitive)
+                    if (subject.toLowerCase().includes('acquisto')) {
+                        console.log(`  ✅ Found matching email: "${subject}"`);
+                        emails.push({
+                            subject: subject,
+                            from: parsed.from?.text || 'Unknown',
+                            date: emailDate,
+                            body: parsed.text || parsed.html || ''
+                        });
+                    } else {
+                        console.log(`  ⏭️ Skipping (no 'Acquisto' in subject): "${subject}"`);
+                    }
                 }
             } catch (parseError) {
                 console.error('Error parsing email:', parseError);
@@ -315,8 +323,8 @@ async function insertRequest(
 
         console.log(`  📦 Found ${shoppingResults.length} results`);
 
-        // 3. Transform and save options (top 10)
-        const optionsToInsert = shoppingResults.slice(0, 10).map((item) => ({
+        // 3. Transform and save options (top 40)
+        const optionsToInsert = shoppingResults.slice(0, 40).map((item) => ({
             request_id: requestData.id,
             vendor: item.source,
             product_title: item.title,
@@ -382,8 +390,9 @@ export async function processEmailsForUser(userId: string): Promise<void> {
     const emails = await fetchEmailsSince(integration, sinceDate);
 
     if (emails.length === 0) {
-        console.log('No new emails to process.');
-        await updateLastSyncedAt(integration.id, new Date());
+        console.log('No new emails with "Acquisto" to process.');
+        // Don't update last_synced_at if no matching emails - this prevents skipping
+        // emails that arrive between polls
         return;
     }
 

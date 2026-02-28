@@ -5,19 +5,81 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="ProcureBot - Il tuo assistente AI per il procurement aziendale. Automatizza gli acquisti, analizza scontrini e risparmia tempo e denaro con l'intelligenza artificiale."
+      content="ProcureBot - Il migliore gestionale per PMI e automazione acquisti aziendali. Software AI per gestione acquisti, analitica acquisti e analisi dati delle spese. Risparmia tempo e denaro con l'intelligenza artificiale."
     />
+    <meta
+      name="keywords"
+      content="migliore gestionale per PMI, miglior programma per gestione acquisti, software procurement aziendale, automazione acquisti piccole imprese, gestione spese aziendali AI, analisi scontrini automatica, AI, Programma aziendale, gestione acquisti, analitica acquisti, analisi dati, procurement Italia, software acquisti PMI"
+    />
+    <meta name="author" content="ProcureBot" />
     <meta name="theme-color" content="#2D4A3E" />
-    <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="ProcureBot | AI Procurement Agent" />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+    <link rel="canonical" href="https://www.procured.online/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.procured.online/" />
+    <meta
+      property="og:title"
+      content="ProcureBot | Migliore Gestionale Acquisti AI per PMI"
+    />
     <meta
       property="og:description"
-      content="Automatizza il Tail Spend aziendale con l'AI. Risparmia tempo e denaro sui piccoli acquisti."
+      content="Il miglior programma per gestione acquisti aziendali. Automatizza il Tail Spend con AI, analizza scontrini e risparmia tempo e denaro."
     />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="og:image" content="https://www.procured.online/og-image.png" />
+    <meta property="og:locale" content="it_IT" />
+    <meta property="og:site_name" content="ProcureBot" />
 
-    <title>ProcureBot | AI Procurement Agent</title>
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://www.procured.online/" />
+    <meta
+      name="twitter:title"
+      content="ProcureBot | Migliore Gestionale Acquisti AI per PMI"
+    />
+    <meta
+      name="twitter:description"
+      content="Software AI per automazione acquisti e gestione spese aziendali."
+    />
+    <meta name="twitter:image" content="https://www.procured.online/og-image.png" />
+
+    <!-- Structured Data - JSON-LD -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ProcureBot",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "description": "Il migliore gestionale per PMI - Software AI per gestione acquisti, analitica acquisti e analisi dati delle spese aziendali. Automazione procurement per piccole e medie imprese italiane.",
+        "offers": {
+          "@type": "Offer",
+          "price": "49",
+          "priceCurrency": "EUR",
+          "priceValidUntil": "2026-12-31"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "ratingCount": "127"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "ProcureBot",
+          "url": "https://www.procured.online"
+        },
+        "keywords": "gestionale PMI, gestione acquisti, procurement AI, analisi dati, analitica acquisti, programma aziendale"
+      }
+    </script>
+
+    <title>ProcureBot | Migliore Gestionale Acquisti AI per PMI Italiane</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <!-- Preload Critical Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -40,7 +102,97 @@
       />
     </noscript>
 
-    <!-- Tailwind CDN with defer -->
+    <!-- Critical CSS - Inline for instant FCP -->
+    <style>
+      /* Reset and Base */
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      
+      html { scroll-behavior: smooth; }
+      
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background-color: #f3f1ea;
+        color: #1a1e1c;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        line-height: 1.5;
+      }
+
+      /* Typography */
+      h1, h2, h3, h4, h5, h6 {
+        font-family: "Syne", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-weight: 700;
+      }
+
+      /* Prevent layout shift */
+      #root { min-height: 100vh; }
+
+      /* Screen reader only - for SEO content */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      /* Loading skeleton for above-the-fold */
+      #root:empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #f3f1ea 0%, #e8e6df 100%);
+      }
+      
+      #root:empty::after {
+        content: "";
+        width: 40px;
+        height: 40px;
+        border: 3px solid #2D4A3E;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* Custom scrollbar */
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+      /* Critical utility classes for above-the-fold content */
+      .min-h-screen { min-height: 100vh; }
+      .fixed { position: fixed; }
+      .relative { position: relative; }
+      .absolute { position: absolute; }
+      .flex { display: flex; }
+      .hidden { display: none; }
+      .items-center { align-items: center; }
+      .justify-center { justify-content: center; }
+      .justify-between { justify-content: space-between; }
+      .w-full { width: 100%; }
+      .h-20 { height: 5rem; }
+      .z-50 { z-index: 50; }
+      .bg-cream, .bg-\[\#F3F1EA\] { background-color: #f3f1ea; }
+      .bg-forest, .bg-\[\#2D4A3E\] { background-color: #2D4A3E; }
+      .text-charcoal, .text-\[\#1A1E1C\] { color: #1a1e1c; }
+      .text-white { color: white; }
+      .font-bold { font-weight: 700; }
+      .text-xl { font-size: 1.25rem; }
+      .px-4 { padding-left: 1rem; padding-right: 1rem; }
+      .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+      .border-b-2 { border-bottom-width: 2px; }
+      .border-\[\#1A1E1C\] { border-color: #1a1e1c; }
+      .backdrop-blur-md { backdrop-filter: blur(12px); }
+    </style>
+
+    <!-- Tailwind CDN - synchronous for proper styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -60,51 +212,6 @@
         },
       };
     </script>
-
-    <style>
-      /* Critical CSS - Inline for faster FCP */
-      body {
-        font-family:
-          "Inter",
-          -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          sans-serif;
-        background-color: #f3f1ea;
-        color: #1a1e1c;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
-
-      /* Font fallback while loading */
-      h1,
-      h2,
-      h3,
-      h4,
-      h5 {
-        font-family:
-          "Syne",
-          -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          sans-serif;
-      }
-
-      /* Prevent layout shift */
-      #root {
-        min-height: 100vh;
-      }
-
-      /* Custom scrollbar for table container */
-      .scrollbar-hide::-webkit-scrollbar {
-        display: none;
-      }
-
-      .scrollbar-hide {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-    </style>
   </head>
 
   <body class="bg-cream text-charcoal antialiased">

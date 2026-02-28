@@ -2,21 +2,58 @@ import React, { useState } from 'react';
 import { X, Bot, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { searchGoogleShopping } from '../lib/serper';
-import { RequestStatus } from '../types';
+import { RequestStatus, TeamMember } from '../types';
+
+const CATEGORIES = [
+  'IT',
+  'Stationery',
+  'Hardware',
+  'Software',
+  'Office Supplies',
+  'Services',
+  'Other'
+];
 
 interface RequestFormProps {
   isOpen: boolean;
   userId: string;
   onClose: () => void;
   onSubmitSuccess: () => void;
+  onRequestInserted?: () => void; // Callback to refresh data after DB insert
 }
 
-const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSubmitSuccess }) => {
+const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSubmitSuccess, onRequestInserted }) => {
   const [productName, setProductName] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [targetPrice, setTargetPrice] = useState('');
+  const [category, setCategory] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
+  
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [assignedTo, setAssignedTo] = useState<string>('');
+
+  // Fetch team members for the dropdown
+  React.useEffect(() => {
+    if (isOpen) {
+      const fetchMembers = async () => {
+        const { data, error } = await supabase
+          .from('team_members')
+          .select('*')
+          .eq('user_id', userId)
+          .order('name');
+        
+        if (!error && data) {
+          setMembers(data as TeamMember[]);
+        }
+      };
+      
+      fetchMembers();
+      
+      // Reset assignment when form opens
+      setAssignedTo('');
+    }
+  }, [isOpen, userId]);
 
   if (!isOpen) return null;
 
@@ -27,11 +64,24 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
     const capturedProductName = productName;
     const capturedQuantity = quantity;
     const numericTargetPrice = parseFloat(targetPrice);
+    const capturedCategory = category || 'Other';
+    const capturedAssignedTo = assignedTo || null;
+
+    if (isNaN(numericTargetPrice) || numericTargetPrice <= 0) {
+      alert('Il prezzo obiettivo non è valido. Inserisci un numero positivo.');
+      return;
+    }
+
+    if (capturedQuantity < 1 || isNaN(capturedQuantity)) {
+      alert('La quantità deve essere almeno 1.');
+      return;
+    }
 
     // Reset form and close immediately
     setProductName('');
     setQuantity(1);
     setTargetPrice('');
+    setCategory('');
     onSubmitSuccess();
     onClose();
 
@@ -45,9 +95,11 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
             product_name: capturedProductName,
             quantity: capturedQuantity,
             target_price: numericTargetPrice,
+            category: capturedCategory,
             source: 'dashboard',
             status: RequestStatus.PENDING,
-            user_id: userId
+            user_id: userId,
+            assigned_to: capturedAssignedTo
           }
         ])
         .select()
@@ -56,6 +108,9 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
       if (requestError) throw requestError;
       if (!requestData) throw new Error('Failed to create request');
 
+      // Immediately refresh the live requests
+      onRequestInserted?.();
+
       const requestId = requestData.id;
 
       // 2. Search Google Shopping via Serper
@@ -63,7 +118,7 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
 
       // 3. Transform and Save Options
       if (shoppingResults.length > 0) {
-        const optionsToInsert = shoppingResults.slice(0, 10).map((item) => ({
+        const optionsToInsert = shoppingResults.slice(0, 40).map((item) => ({
           request_id: requestId,
           vendor: item.source,
           product_title: item.title,
@@ -163,6 +218,41 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
                 onChange={(e) => setTargetPrice(e.target.value)}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-charcoal mb-2 uppercase tracking-wide">
+              Category
+            </label>
+            <select
+              required
+              className="w-full p-4 bg-white border-2 border-charcoal focus:outline-none focus:ring-2 focus:ring-forest appearance-none cursor-pointer"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="">Select a category...</option>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-2">Helps organize spending reports.</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-charcoal mb-2 uppercase tracking-wide">
+              Assign To (Optional)
+            </label>
+            <select
+              className="w-full p-4 bg-white border-2 border-charcoal focus:outline-none focus:ring-2 focus:ring-forest appearance-none cursor-pointer"
+              value={assignedTo}
+              onChange={(e) => setAssignedTo(e.target.value)}
+            >
+              <option value="">No assignment</option>
+              {members.map((member) => (
+                <option key={member.id} value={member.id}>{member.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-2">Link this request to a team member's budget.</p>
           </div>
 
           <div className="pt-4">

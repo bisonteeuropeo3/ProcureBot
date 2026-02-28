@@ -152,13 +152,62 @@ const RequestDetailsModal: React.FC<RequestDetailsModalProps> = ({ request, isOp
                             </div>
                         </div>
                     ) : (
-                         <div className="bg-yellow-50 border border-yellow-200 p-4 rounded text-yellow-800 flex items-center gap-3">
-                             <AlertTriangle className="w-5 h-5" />
-                             <div>
-                                 <p className="font-bold text-sm">Missing Order Data</p>
-                                 <p className="text-xs">This request is approved, but the specific option details are missing from the database.</p>
-                             </div>
-                         </div>
+                        // Fallback: Show request data when sourcing option is missing (legacy requests)
+                        <div className="bg-white border-2 border-charcoal">
+                            <div className="w-full h-32 bg-gray-50 border-b-2 border-charcoal p-4 flex items-center justify-center relative">
+                                <div className="flex flex-col items-center text-gray-300">
+                                    <ImageOff className="w-8 h-8 mb-1" />
+                                    <span className="text-xs">Image not available</span>
+                                </div>
+                                <div className="absolute top-2 right-2 bg-lime border border-charcoal px-2 py-1 text-xs font-bold uppercase">
+                                    Purchased
+                                </div>
+                            </div>
+
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Item Ordered</label>
+                                    <h3 className="font-bold text-charcoal text-lg leading-tight">
+                                        {request.product_name}
+                                    </h3>
+                                </div>
+                                
+                                <div className="flex items-center gap-4">
+                                     <div className="flex-1">
+                                        <label className="text-xs font-bold text-gray-500 uppercase">Target Price</label>
+                                        <p className="font-mono">€{request.target_price.toFixed(2)}</p>
+                                     </div>
+                                     <div className="flex-1">
+                                        <label className="text-xs font-bold text-gray-500 uppercase">Quantity</label>
+                                        <p className="font-bold">{request.quantity}</p>
+                                     </div>
+                                </div>
+
+                                <div className="border-t border-dashed border-gray-300 my-4"></div>
+
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <p className="text-xs text-gray-500 mb-1">Total Cost ({request.quantity} units)</p>
+                                        <div className="flex items-center gap-2">
+                                            <CreditCard className="w-4 h-4 text-forest" />
+                                            <span className="text-2xl font-mono font-bold text-charcoal">
+                                                €{request.found_price ? (request.found_price * request.quantity).toFixed(2) : '---'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {request.link && (
+                                        <a 
+                                            href={request.link} 
+                                            target="_blank" 
+                                            rel="noreferrer"
+                                            className="text-sm font-bold text-forest underline decoration-forest hover:text-charcoal flex items-center gap-1"
+                                        >
+                                            View Product Link <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </>
             )}

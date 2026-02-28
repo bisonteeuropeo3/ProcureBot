@@ -29,7 +29,6 @@ export async function searchGoogleShopping(query: string): Promise<SerperShoppin
 
   console.log(`[Serper] Searching for "${query}"`);
   console.log(`[Serper] API Key present: ${!!apiKey}`);
-  console.log(`[Serper] API Key (first 10 chars): ${apiKey?.substring(0, 10)}...`);
 
   if (!apiKey) {
     console.error("[Serper] Missing VITE_SERPER_API_KEY");

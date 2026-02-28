@@ -73,7 +73,7 @@ export const EmailIntegrationSettings: React.FC = () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("Not authenticated");
 
-            // Call the encryption API server (keeps encryption key server-side)
+            // Call the encryption API server directly on AWS
             const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
             const response = await fetch(`${API_URL}/api/email-integration`, {
@@ -91,7 +91,25 @@ export const EmailIntegrationSettings: React.FC = () => {
                 })
             });
 
-            const result = await response.json();
+            // Better error handling for debugging
+            const responseText = await response.text();
+            console.log('API Response Status:', response.status);
+            console.log('API Response Body:', responseText);
+
+            if (!response.ok) {
+                throw new Error(`Server error (${response.status}): ${responseText || 'No response body'}`);
+            }
+
+            if (!responseText) {
+                throw new Error('Empty response from API server. Check if the encryption API is running.');
+            }
+
+            let result;
+            try {
+                result = JSON.parse(responseText);
+            } catch (parseError) {
+                throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}`);
+            }
 
             if (!result.success) {
                 throw new Error(result.error || 'Failed to save integration');
