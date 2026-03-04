@@ -163,7 +163,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
       // Use Promise.allSettled so one failure doesn't block the others
       const [reqResult, pendingResult, completedResult] = await Promise.allSettled([
         supabase.from("requests").select("*").eq('user_id', session.user.id).order("created_at", { ascending: false }),
-        supabase.from("receipts").select("*").eq('user_id', session.user.id).or("status.eq.processing,status.eq.analyzed").order("created_at", { ascending: false }),
+        supabase.from("receipts").select("*").eq('user_id', session.user.id).or("status.eq.processing,status.eq.analyzed,status.eq.failed").order("created_at", { ascending: false }),
         supabase.from("receipts").select("*").eq('user_id', session.user.id).eq("status", "completed").order("created_at", { ascending: false }),
       ]);
 
@@ -352,13 +352,11 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
         })
         .catch(async (err) => {
           console.error("Async analysis failed:", err);
-          const errorMessage = err?.message?.includes('API')
-            ? 'Errore server API. Verifica che il backend sia in esecuzione.'
-            : 'Analisi scontrino fallita. Riprova.';
-          showToast(errorMessage);
+          const errorMessage = err?.message || 'Analisi scontrino fallita. Riprova.';
+          showToast(`❌ ${errorMessage}`);
           const { error: failErr } = await supabase
             .from("receipts")
-            .update({ status: "failed" })
+            .update({ status: "failed", last_error: errorMessage })
             .eq("id", receiptCallback.id);
           if (failErr) console.error('Failed to mark receipt as failed:', failErr);
           fetchData();
@@ -368,6 +366,69 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
       showToast(`Error: ${error.message}`);
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  // Retry analysis for a failed receipt
+  const handleRetryAnalysis = async (receipt: Receipt) => {
+    showToast('Riprovo analisi scontrino...');
+
+    try {
+      // 1. Reset status to processing
+      const { error: updateErr } = await supabase
+        .from('receipts')
+        .update({ status: 'processing', last_error: null })
+        .eq('id', receipt.id);
+
+      if (updateErr) throw updateErr;
+      fetchData();
+
+      // 2. Re-download image from storage URL
+      if (!receipt.image_url) {
+        throw new Error('URL immagine mancante per questo scontrino');
+      }
+
+      console.log('[Retry] Fetching image from:', receipt.image_url);
+      const imgResponse = await fetch(receipt.image_url);
+      if (!imgResponse.ok) {
+        throw new Error(`Impossibile scaricare l'immagine (${imgResponse.status})`);
+      }
+      const blob = await imgResponse.blob();
+      const file = new File([blob], 'receipt.jpg', { type: blob.type });
+
+      // 3. Re-analyze
+      const data = await analyzeReceipt(file);
+
+      // 4. Update receipt with results
+      const { error: saveErr } = await supabase
+        .from('receipts')
+        .update({
+          merchant_name: data.merchantName,
+          total_amount: data.totalAmount,
+          currency: data.currency,
+          receipt_date: data.date,
+          status: 'analyzed',
+          raw_data: data,
+          last_error: null,
+        })
+        .eq('id', receipt.id);
+
+      if (saveErr) {
+        console.error('Failed to save retry results:', saveErr);
+        showToast('Analisi riuscita ma salvataggio fallito.');
+      } else {
+        showToast(`✅ Analisi completata: ${data.merchantName || 'Unknown'}`);
+      }
+      fetchData();
+
+    } catch (err: any) {
+      console.error('Retry analysis failed:', err);
+      showToast(`❌ ${err.message}`);
+      await supabase
+        .from('receipts')
+        .update({ status: 'failed', last_error: err.message })
+        .eq('id', receipt.id);
+      fetchData();
     }
   };
 
@@ -466,8 +527,8 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 setSidebarOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === "dashboard"
-                  ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
-                  : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
+                : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
                 }`}
             >
               <LayoutDashboard className="w-5 h-5" />
@@ -479,8 +540,8 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 setSidebarOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === "history"
-                  ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
-                  : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
+                : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
                 }`}
             >
               <FileText className="w-5 h-5" />
@@ -492,8 +553,8 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 setSidebarOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === "receipts"
-                  ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
-                  : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
+                : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
                 }`}
             >
               <ReceiptIcon className="w-5 h-5" />
@@ -505,8 +566,8 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 setSidebarOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === "people"
-                  ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
-                  : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
+                : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
                 }`}
             >
               <Users className="w-5 h-5" />
@@ -518,8 +579,8 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 setSidebarOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === "statistics"
-                  ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
-                  : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
+                : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
                 }`}
             >
               <BarChart2 className="w-5 h-5" />
@@ -531,8 +592,8 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 setSidebarOpen(false);
               }}
               className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === "settings"
-                  ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
-                  : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
+                : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
                 }`}
             >
               <Settings className="w-5 h-5" />
@@ -668,6 +729,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 <PendingReceiptsList
                   receipts={pendingReceipts}
                   onReview={handleReviewReceiptFromList}
+                  onRetryAnalysis={handleRetryAnalysis}
                 />
 
                 <DashboardTable

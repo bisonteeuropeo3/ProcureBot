@@ -78,9 +78,13 @@ async function processImage(file: File): Promise<string> {
   });
 }
 
+// Timeout in ms for the API call (60 seconds)
+const ANALYZE_TIMEOUT_MS = 60_000;
+
 /**
  * Analyze a receipt image by sending it to the backend API.
  * The backend handles the OpenAI API call server-side, keeping API keys secure.
+ * Includes a timeout to prevent indefinite hanging.
  */
 export async function analyzeReceipt(file: File): Promise<ReceiptData> {
   // On Vercel: VITE_API_URL is empty/unset → use relative URL (same domain)
@@ -89,23 +93,55 @@ export async function analyzeReceipt(file: File): Promise<ReceiptData> {
 
   try {
     // 1. Process Image (client-side preprocessing)
+    console.log('[ReceiptAnalyzer] Processing image...');
     const base64Image = await processImage(file);
+    console.log(`[ReceiptAnalyzer] Image processed (${Math.round(base64Image.length / 1024)}KB base64)`);
 
-    // 2. Call backend API (which securely uses OpenAI server-side)
-    const response = await fetch(`${API_URL}/api/analyze-receipt`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ image: base64Image }),
-    });
+    // 2. Call backend API with timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, ANALYZE_TIMEOUT_MS);
+
+    console.log(`[ReceiptAnalyzer] Calling ${API_URL}/api/analyze-receipt ...`);
+
+    let response: Response;
+    try {
+      response = await fetch(`${API_URL}/api/analyze-receipt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image: base64Image }),
+        signal: controller.signal,
+      });
+    } catch (fetchError: any) {
+      if (fetchError.name === 'AbortError') {
+        throw new Error(`Timeout: l'analisi ha impiegato più di ${ANALYZE_TIMEOUT_MS / 1000} secondi. Riprova.`);
+      }
+      // Network error (server down, CORS, etc.)
+      console.error('[ReceiptAnalyzer] Network error:', fetchError);
+      throw new Error(`Errore di rete: impossibile raggiungere il server API. ${fetchError.message}`);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    console.log(`[ReceiptAnalyzer] Response status: ${response.status}`);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Analisi fallita (${response.status}): ${errorText}`);
+      let errorDetail = '';
+      try {
+        const errorBody = await response.json();
+        errorDetail = errorBody.error || JSON.stringify(errorBody);
+      } catch {
+        errorDetail = await response.text().catch(() => 'Nessun dettaglio');
+      }
+      console.error(`[ReceiptAnalyzer] Server error ${response.status}:`, errorDetail);
+      throw new Error(`Errore server (${response.status}): ${errorDetail}`);
     }
 
     const result = await response.json();
+    console.log('[ReceiptAnalyzer] Response received:', result.success ? 'SUCCESS' : 'FAILED');
 
     if (!result.success) {
       throw new Error(result.error || 'Analisi scontrino fallita');
@@ -113,8 +149,8 @@ export async function analyzeReceipt(file: File): Promise<ReceiptData> {
 
     return result.data as ReceiptData;
 
-  } catch (error) {
-    console.error("Error analyzing receipt:", error);
+  } catch (error: any) {
+    console.error("[ReceiptAnalyzer] Error:", error.message);
     throw error;
   }
 }
