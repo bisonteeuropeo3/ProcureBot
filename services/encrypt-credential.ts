@@ -194,14 +194,25 @@ Schema JSON richiesto:
 }
 
 /**
- * Parse JSON body from request
+ * Parse JSON body from request (supports large payloads for image uploads)
  */
 function parseBody(req: http.IncomingMessage): Promise<any> {
     return new Promise((resolve, reject) => {
-        let body = '';
-        req.on('data', chunk => body += chunk);
+        const chunks: Buffer[] = [];
+        let totalSize = 0;
+
+        req.on('data', (chunk: Buffer) => {
+            totalSize += chunk.length;
+            if (totalSize > MAX_BODY_SIZE) {
+                req.destroy();
+                reject(new Error(`Request body too large (max ${MAX_BODY_SIZE / 1024 / 1024}MB)`));
+                return;
+            }
+            chunks.push(chunk);
+        });
         req.on('end', () => {
             try {
+                const body = Buffer.concat(chunks).toString('utf8');
                 resolve(JSON.parse(body));
             } catch (e) {
                 reject(new Error('Invalid JSON'));
@@ -224,8 +235,8 @@ function sendJson(res: http.ServerResponse, statusCode: number, data: any) {
     res.end(JSON.stringify(data));
 }
 
-// Increase max body size for image uploads (default is too small)
-const MAX_BODY_SIZE = 10 * 1024 * 1024; // 10MB
+// Max body size for image uploads
+const MAX_BODY_SIZE = 20 * 1024 * 1024; // 20MB
 
 // Create HTTP server
 const server = http.createServer(async (req, res) => {

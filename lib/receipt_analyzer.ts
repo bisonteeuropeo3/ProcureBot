@@ -83,7 +83,9 @@ async function processImage(file: File): Promise<string> {
  * The backend handles the OpenAI API call server-side, keeping API keys secure.
  */
 export async function analyzeReceipt(file: File): Promise<ReceiptData> {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  // On Vercel: VITE_API_URL is empty/unset → use relative URL (same domain)
+  // In local dev: VITE_API_URL = http://localhost:3001
+  const API_URL = import.meta.env.VITE_API_URL || '';
 
   try {
     // 1. Process Image (client-side preprocessing)
