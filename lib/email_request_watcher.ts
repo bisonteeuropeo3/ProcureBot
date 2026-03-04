@@ -24,8 +24,8 @@ dotenv.config({ path: '.env.local' });
 
 // Environment variables
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL!;
-const SUPABASE_SERVICE_KEY = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY!;
-const OPENAI_API_KEY = process.env.VITE_OPENAI_API_KEY!;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
 
 // Validate required environment variables
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -34,7 +34,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 }
 
 if (!OPENAI_API_KEY) {
-    console.error('Missing VITE_OPENAI_API_KEY in .env.local');
+    console.error('Missing OPENAI_API_KEY in .env.local');
     process.exit(1);
 }
 
@@ -191,7 +191,7 @@ async function fetchEmailsSince(integration: EmailIntegration, sinceDate: Date):
                 const emailDate = parsed.date || new Date();
                 if (emailDate > sinceDate) {
                     const subject = parsed.subject || '(No Subject)';
-                    
+
                     // Filter: Only process emails containing "Acquisto" (case-insensitive)
                     if (subject.toLowerCase().includes('acquisto')) {
                         console.log(`  ✅ Found matching email: "${subject}"`);

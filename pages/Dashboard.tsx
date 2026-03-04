@@ -51,11 +51,11 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
   const [requests, setRequests] = useState<ProcurementRequest[]>([]);
   const [pendingReceipts, setPendingReceipts] = useState<Receipt[]>([]);
   const [completedReceipts, setCompletedReceipts] = useState<Receipt[]>([]);
-  
+
   // ... (rest of state items are unchanged, just re-declaring them not needed if I can target the function start)
-  
-// I cannot easily replace just the start without repeating lines. 
-// I will target the component definition line and the fetchData function.
+
+  // I cannot easily replace just the start without repeating lines. 
+  // I will target the component definition line and the fetchData function.
 
   const [stats, setStats] = useState<DashboardStats>({
     totalSavings: 0,
@@ -143,8 +143,7 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
             payload.new.status === "analyzed"
           ) {
             showToast(
-              `Receipt analyzed: ${
-                payload.new.merchant_name || "Ready for review"
+              `Receipt analyzed: ${payload.new.merchant_name || "Ready for review"
               }`
             );
           }
@@ -353,8 +352,8 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
         })
         .catch(async (err) => {
           console.error("Async analysis failed:", err);
-          const errorMessage = err?.message?.includes('API Key')
-            ? 'Chiave OpenAI mancante. Configura VITE_OPENAI_API_KEY.'
+          const errorMessage = err?.message?.includes('API')
+            ? 'Errore server API. Verifica che il backend sia in esecuzione.'
             : 'Analisi scontrino fallita. Riprova.';
           showToast(errorMessage);
           const { error: failErr } = await supabase
@@ -447,9 +446,8 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
     <div className="flex h-screen bg-cream font-sans overflow-hidden">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-charcoal text-white transform transition-transform duration-300 ease-in-out border-r-2 border-charcoal ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0 md:relative flex-shrink-0`}
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-charcoal text-white transform transition-transform duration-300 ease-in-out border-r-2 border-charcoal ${sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } md:translate-x-0 md:relative flex-shrink-0`}
       >
         <div className="h-full flex flex-col">
           <div className="p-6 border-b border-gray-800 flex items-center gap-3 shrink-0">
@@ -467,11 +465,10 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 setActivePage("dashboard");
                 setSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${
-                activePage === "dashboard"
+              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === "dashboard"
                   ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
                   : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
+                }`}
             >
               <LayoutDashboard className="w-5 h-5" />
               Dashboard
@@ -481,11 +478,10 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 setActivePage("history");
                 setSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${
-                activePage === "history"
+              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === "history"
                   ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
                   : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
+                }`}
             >
               <FileText className="w-5 h-5" />
               History
@@ -495,11 +491,10 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 setActivePage("receipts");
                 setSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${
-                activePage === "receipts"
+              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === "receipts"
                   ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
                   : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
+                }`}
             >
               <ReceiptIcon className="w-5 h-5" />
               Receipts
@@ -509,11 +504,10 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 setActivePage("people");
                 setSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${
-                activePage === "people"
+              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === "people"
                   ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
                   : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
+                }`}
             >
               <Users className="w-5 h-5" />
               Persone
@@ -523,11 +517,10 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 setActivePage("statistics");
                 setSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${
-                activePage === "statistics"
+              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === "statistics"
                   ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
                   : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
+                }`}
             >
               <BarChart2 className="w-5 h-5" />
               Statistiche
@@ -537,11 +530,10 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
                 setActivePage("settings");
                 setSidebarOpen(false);
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${
-                activePage === "settings"
+              className={`w-full flex items-center gap-3 px-4 py-3 border font-bold transition-colors ${activePage === "settings"
                   ? "bg-forest text-lime border-lime shadow-[2px_2px_0px_#D4E768]"
                   : "border-transparent text-gray-400 hover:text-white hover:bg-white/5"
-              }`}
+                }`}
             >
               <Settings className="w-5 h-5" />
               Settings
@@ -558,9 +550,8 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
               </div>
               <div className="w-full bg-gray-700 h-2 rounded-full mb-2 overflow-hidden">
                 <div
-                  className={`h-2 rounded-full transition-all duration-1000 ${
-                    budgetPercent > 90 ? "bg-red-500" : "bg-lime"
-                  }`}
+                  className={`h-2 rounded-full transition-all duration-1000 ${budgetPercent > 90 ? "bg-red-500" : "bg-lime"
+                    }`}
                   style={{ width: `${budgetPercent}%` }}
                 ></div>
               </div>
@@ -709,9 +700,9 @@ const Dashboard: React.FC<DashboardProps> = ({ session }) => {
           )}
 
           {!loading && activePage === "receipts" && <ReceiptsView userId={session.user.id} />}
-          
+
           {!loading && activePage === "people" && <TeamMembersView userId={session.user.id} />}
-          
+
           {!loading && activePage === "statistics" && <StatisticsView userId={session.user.id} />}
 
           {!loading && activePage === "settings" && <SettingsView />}

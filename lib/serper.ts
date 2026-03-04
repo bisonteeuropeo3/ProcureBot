@@ -1,5 +1,5 @@
-// Note: In Node.js context (email watcher), dotenv should be loaded by the caller
-// In browser context (Vite), env vars are available via import.meta.env
+// Server-side only module - requires dotenv to be loaded by the caller
+// This module must NEVER be imported from frontend code
 
 export interface SerperShoppingResult {
   title: string;
@@ -19,8 +19,8 @@ export interface SerperResponse {
 }
 
 export async function searchGoogleShopping(query: string): Promise<SerperShoppingResult[]> {
-  // Support both Node.js (process.env) and Vite (import.meta.env) environments
-  let apiKey = process.env.VITE_SERPER_API_KEY || process.env.SERPER_API_KEY || (import.meta as any).env?.VITE_SERPER_API_KEY;
+  // Server-side only: use process.env
+  let apiKey = process.env.SERPER_API_KEY;
 
   // Strip quotes if present (from .env.local file)
   if (apiKey) {
@@ -31,8 +31,8 @@ export async function searchGoogleShopping(query: string): Promise<SerperShoppin
   console.log(`[Serper] API Key present: ${!!apiKey}`);
 
   if (!apiKey) {
-    console.error("[Serper] Missing VITE_SERPER_API_KEY");
-    throw new Error("Missing Serper API Key (VITE_SERPER_API_KEY). Check .env.local");
+    console.error("[Serper] Missing SERPER_API_KEY");
+    throw new Error("Missing Serper API Key (SERPER_API_KEY). Check .env.local");
   }
 
   const myHeaders = new Headers();

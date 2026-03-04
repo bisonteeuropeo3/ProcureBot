@@ -1,4 +1,10 @@
-import OpenAI from 'openai';
+/**
+ * Receipt Analyzer - Client-Side Module
+ * 
+ * This module delegates receipt analysis to the backend API server,
+ * which has access to the OpenAI API key server-side.
+ * No API keys are used or exposed in this frontend module.
+ */
 
 export interface ReceiptItem {
   description: string;
@@ -42,7 +48,7 @@ async function processImage(file: File): Promise<string> {
         return;
       }
 
-      // Scale Logic: Max dimension 1024px to reduce tokens while keeping readability
+      // Scale Logic: Max dimension 2048px to reduce tokens while keeping readability
       const MAX_DIM = 2048;
       let width = img.width;
       let height = img.height;
@@ -65,118 +71,45 @@ async function processImage(file: File): Promise<string> {
       ctx.drawImage(img, 0, 0, width, height);
 
       // Return base64
-      // toDataURL returns "data:image/png;base64,..."
-      resolve(canvas.toDataURL('image/jpeg', 0.8)); // Use JPEG for better compression/token usage
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
     };
 
     reader.readAsDataURL(file);
   });
 }
 
-// Removed top-level initialization to prevent app crash on load if key is missing
-
+/**
+ * Analyze a receipt image by sending it to the backend API.
+ * The backend handles the OpenAI API call server-side, keeping API keys secure.
+ */
 export async function analyzeReceipt(file: File): Promise<ReceiptData> {
-  const OPENAI_API_KEY = (import.meta as any).env?.VITE_OPENAI_API_KEY;
-
-  if (!OPENAI_API_KEY) {
-    console.error("Missing VITE_OPENAI_API_KEY");
-    throw new Error("OpenAI API Key is missing. Please add VITE_OPENAI_API_KEY to your .env.local file.");
-  }
-
-  const openai = new OpenAI({
-    apiKey: OPENAI_API_KEY,
-    dangerouslyAllowBrowser: true 
-  });
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
   try {
-    // 1. Process Image
-    const base64ImageWithHeader = await processImage(file);
+    // 1. Process Image (client-side preprocessing)
+    const base64Image = await processImage(file);
 
-    // 2. Call OpenAI
-    const prompt = `Sei un sistema OCR estremamente preciso specializzato nell'analisi di scontrini fiscali italiani. 
-Il tuo compito è estrarre i dati dall'immagine fornita e restituirli ESCLUSIVAMENTE in formato JSON.
-
-Regole:
-1. Analizza l'immagine e cerca: Nome Negozio, Data, Ora, Totale, Lista articoli, prosegui andando riga per riga dall'alto in basso sii estremamente preciso.
-2. Converti la data in formato ISO (YYYY-MM-DD).
-3. Se un campo non è leggibile o presente, imposta il valore a null.
-4. Categorizza lo scontrino basandoti sugli articoli o sul nome del negozio.
-5. PER OGNI ARTICOLO, assegna una categoria tra le seguenti:
-   - "Alimentari" (cibo, bevande, prodotti supermercato)
-   - "Ufficio" (cancelleria, materiale ufficio)
-   - "Tecnologia" (elettronica, accessori tech)
-   - "Casa" (prodotti per la casa, pulizia)
-   - "Abbigliamento" (vestiti, scarpe, accessori moda)
-   - "Trasporti" (carburante, biglietti, pedaggi)
-   - "Servizi" (abbonamenti, manutenzione)
-   - "Altro" (tutto ciò che non rientra nelle altre categorie)
-6. Restituisci SOLO l'oggetto JSON, senza markdown o testo aggiuntivo.
-7. Se ci sono articoli identici segnati più volte in caso di mancanza della colonna quantità, considera solo la quantità totale.
-
-Schema JSON richiesto:
-{
-  "nome_esercente": "string",
-  "indirizzo": "string",
-  "partita_iva": "string",
-  "data": "YYYY-MM-DD",
-  "ora": "HH:MM",
-  "totale": number,
-  "valuta": "EUR",
-  "categoria": "string",
-  "elementi": [
-    { "descrizione": "string", "quantita": number, "prezzo_unitario": number, "prezzo_totale": number, "categoria": "string" }
-  ]
-}`;
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Using gpt-4o for best vision capabilities
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            {
-              type: "image_url",
-              image_url: {
-                url: base64ImageWithHeader,
-                detail: "high"
-              },
-            },
-          ],
-        },
-      ],
-      response_format: { type: "json_object" },
+    // 2. Call backend API (which securely uses OpenAI server-side)
+    const response = await fetch(`${API_URL}/api/analyze-receipt`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ image: base64Image }),
     });
 
-    const content = response.choices[0].message.content;
-    if (!content) {
-      throw new Error("No content received from OpenAI");
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Analisi fallita (${response.status}): ${errorText}`);
     }
 
-    const rawData = JSON.parse(content);
+    const result = await response.json();
 
-    // 3. Map to ReceiptData interface
-    const receiptData: ReceiptData = {
-      merchantName: rawData.nome_esercente || "Sconosciuto",
-      address: rawData.indirizzo || null,
-      taxId: rawData.partita_iva || null,
-      date: rawData.data || null,
-      time: rawData.ora || null,
-      totalAmount: typeof rawData.totale === 'number' ? rawData.totale : 0,
-      currency: rawData.valuta || "EUR",
-      category: rawData.categoria || "Uncategorized",
-      items: Array.isArray(rawData.elementi) 
-        ? rawData.elementi.map((item: any) => ({
-            description: item.descrizione || "Item",
-            quantity: typeof item.quantita === 'number' ? item.quantita : 1,
-            price: typeof item.prezzo_unitario === 'number' ? item.prezzo_unitario : 0,
-            totalPrice: typeof item.prezzo_totale === 'number' ? item.prezzo_totale : 0,
-            category: item.categoria || "Altro"
-          }))
-        : []
-    };
+    if (!result.success) {
+      throw new Error(result.error || 'Analisi scontrino fallita');
+    }
 
-    return receiptData;
+    return result.data as ReceiptData;
 
   } catch (error) {
     console.error("Error analyzing receipt:", error);
