@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { X, Bot, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { searchGoogleShopping } from '../lib/serper';
 import { RequestStatus, TeamMember } from '../types';
 
 const CATEGORIES = [
@@ -22,6 +21,60 @@ interface RequestFormProps {
   onRequestInserted?: () => void; // Callback to refresh data after DB insert
 }
 
+interface ShoppingResult {
+  title: string;
+  source: string;
+  price: string;
+  link: string;
+  imageUrl: string;
+  rating?: number;
+  ratingCount?: number;
+  productId?: string;
+  position?: number;
+}
+
+/**
+ * Search products via backend API (Serper) - keeps API key server-side
+ */
+async function searchProducts(query: string): Promise<ShoppingResult[]> {
+  const API_URL = import.meta.env.VITE_API_URL || '';
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000); // 30s timeout
+
+  try {
+    console.log(`[Search] Calling ${API_URL}/api/search-products for "${query}"...`);
+
+    const response = await fetch(`${API_URL}/api/search-products`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      console.error(`[Search] Server error ${response.status}:`, errBody);
+      throw new Error(`Ricerca prodotti fallita (${response.status})`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Ricerca prodotti fallita');
+    }
+
+    console.log(`[Search] Found ${result.results?.length || 0} results`);
+    return result.results || [];
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error('Timeout: la ricerca ha impiegato troppo tempo');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSubmitSuccess, onRequestInserted }) => {
   const [productName, setProductName] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -29,7 +82,7 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
   const [category, setCategory] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string>('');
-  
+
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [assignedTo, setAssignedTo] = useState<string>('');
 
@@ -42,14 +95,14 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
           .select('*')
           .eq('user_id', userId)
           .order('name');
-        
+
         if (!error && data) {
           setMembers(data as TeamMember[]);
         }
       };
-      
+
       fetchMembers();
-      
+
       // Reset assignment when form opens
       setAssignedTo('');
     }
@@ -59,7 +112,7 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Capture form values before closing
     const capturedProductName = productName;
     const capturedQuantity = quantity;
@@ -113,8 +166,8 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
 
       const requestId = requestData.id;
 
-      // 2. Search Google Shopping via Serper
-      const shoppingResults = await searchGoogleShopping(capturedProductName);
+      // 2. Search Products via backend API (Serper, server-side)
+      const shoppingResults = await searchProducts(capturedProductName);
 
       // 3. Transform and Save Options
       if (shoppingResults.length > 0) {
@@ -137,28 +190,25 @@ const RequestForm: React.FC<RequestFormProps> = ({ isOpen, userId, onClose, onSu
           .insert(optionsToInsert);
 
         if (optionsError) {
-            console.error("Error inserting options:", optionsError);
-            // Don't throw, just proceed, maybe we failed to save options but request is there
+          console.error("Error inserting options:", optionsError);
         } else {
-            // 4. Update Request Status to ACTION_REQUIRED
-            await supabase
-                .from('requests')
-                .update({ status: RequestStatus.ACTION_REQUIRED })
-                .eq('id', requestId);
+          // 4. Update Request Status to ACTION_REQUIRED
+          await supabase
+            .from('requests')
+            .update({ status: RequestStatus.ACTION_REQUIRED })
+            .eq('id', requestId);
         }
       }
-      
+
     } catch (error: any) {
       console.error('Error processing request:', error);
-      // Errors are logged but not shown since modal is closed
-      // The realtime subscription will handle showing the request status
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-charcoal/80 backdrop-blur-sm">
       <div className="bg-white w-full max-w-lg border-2 border-charcoal shadow-[8px_8px_0px_#D4E768] animate-in fade-in zoom-in-95 duration-200">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b-2 border-charcoal bg-cream">
           <div className="flex items-center gap-3">

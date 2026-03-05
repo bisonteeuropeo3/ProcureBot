@@ -258,6 +258,7 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+
     // Route: POST /api/analyze-receipt
     if (req.method === 'POST' && req.url === '/api/analyze-receipt') {
         try {
@@ -266,6 +267,56 @@ const server = http.createServer(async (req, res) => {
             sendJson(res, result.success ? 200 : 500, result);
         } catch (err: any) {
             sendJson(res, 400, { success: false, error: err.message });
+        }
+        return;
+    }
+
+    // Route: POST /api/search-products (Serper Google Shopping)
+    if (req.method === 'POST' && req.url === '/api/search-products') {
+        try {
+            const body = await parseBody(req);
+            const { query } = body;
+
+            if (!query || typeof query !== 'string') {
+                sendJson(res, 400, { success: false, error: 'Missing or invalid query parameter' });
+                return;
+            }
+
+            const SERPER_API_KEY = process.env.SERPER_API_KEY;
+            if (!SERPER_API_KEY) {
+                sendJson(res, 500, { success: false, error: 'Missing SERPER_API_KEY' });
+                return;
+            }
+
+            console.log(`[Serper] Searching for "${query}"...`);
+
+            const serperResponse = await fetch('https://google.serper.dev/shopping', {
+                method: 'POST',
+                headers: {
+                    'X-API-KEY': SERPER_API_KEY,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ q: query, gl: 'it', hl: 'it', num: 40 }),
+            });
+
+            if (!serperResponse.ok) {
+                const errorText = await serperResponse.text();
+                console.error(`[Serper] API Error: ${serperResponse.status} - ${errorText}`);
+                sendJson(res, serperResponse.status, {
+                    success: false,
+                    error: `Serper API failed: ${serperResponse.status}`,
+                });
+                return;
+            }
+
+            const serperResult = await serperResponse.json();
+            const shopping = serperResult.shopping || [];
+            console.log(`[Serper] Found ${shopping.length} results`);
+
+            sendJson(res, 200, { success: true, results: shopping });
+        } catch (err: any) {
+            console.error('[Serper] Error:', err.message);
+            sendJson(res, 500, { success: false, error: err.message });
         }
         return;
     }
@@ -288,6 +339,7 @@ server.listen(PORT, () => {
     console.log(`Endpoints:`);
     console.log(`  POST /api/email-integration  - Create encrypted integration`);
     console.log(`  POST /api/analyze-receipt     - Analyze receipt with OpenAI`);
+    console.log(`  POST /api/search-products     - Search products via Serper`);
     console.log(`  GET  /health                  - Health check`);
     console.log('═'.repeat(50));
 });
